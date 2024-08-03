@@ -8,7 +8,7 @@ import java.util.*
 import java.util.function.BiConsumer
 
 class LmdbSha12Int(env: Env<ByteBuffer>, dbName: String) : LmdbAbstractMap(env, dbName) {
-    fun put(hash: String?, value: Int) {
+    fun put(hash: String, value: Int) {
         val bytes = HexFormat.of().parseHex(hash)
         putImpl(
             ByteBuffer.allocateDirect(bytes.size).put(bytes).flip(),
@@ -19,13 +19,13 @@ class LmdbSha12Int(env: Env<ByteBuffer>, dbName: String) : LmdbAbstractMap(env, 
     /**
      * @return value for key or -1
      */
-    fun get(hash: String?): Int {
+    fun get(hash: String): Int {
         val bytes = HexFormat.of().parseHex(hash)
         val res = getImpl(ByteBuffer.allocateDirect(bytes.size).put(bytes).flip())
         return res?.getInt() ?: -1
     }
 
-    fun forEach(consumer: BiConsumer<String?, Int?>) {
+    fun forEach(consumer: BiConsumer<String, Int>) {
         env.txnRead().use { txn ->
             db.iterate(txn, KeyRange.all()).use { ci ->
                 for (kv in ci) {

@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     id("java")
     id("antlr")
@@ -75,7 +77,11 @@ tasks.named<Jar>("jar") {
     archiveFileName.set("${project.name}-${project.version}-all.jar")
 }
 
-tasks.withType<JavaCompile> {
+tasks.withType<JavaCompile>{
+    dependsOn("generateGrammarSource")
+}
+
+tasks.withType<KotlinCompile> {
     dependsOn("generateGrammarSource")
 }
 

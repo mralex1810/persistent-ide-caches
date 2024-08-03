@@ -5,20 +5,20 @@ import com.github.sudu.persistentidecaches.changes.Change
 import com.github.sudu.persistentidecaches.records.Revision
 
 class EchoIndex : Index<String, String> {
-    override fun prepare(changes: List<Change?>) {
+    override fun prepare(changes: List<Change>) {
         println("Echo: prepare")
-        changes.forEach { x: Any? -> println(x) }
+        changes.forEach { println(it) }
         println(SEP)
     }
 
-    override fun processChanges(changes: List<Change?>) {
+    override fun processChanges(changes: List<Change>) {
         println("Echo: process")
-        changes.forEach { x: Any? -> println(x) }
+        changes.forEach { println(it) }
         println(SEP)
     }
 
-    override fun getValue(o: String, revision: Revision): String? {
-        println("Echo: get $o from revision: $revision")
+    override fun getValue(key: String, revision: Revision): String? {
+        println("Echo: get $key from revision: $revision")
         return null
     }
 

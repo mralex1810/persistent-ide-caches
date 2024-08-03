@@ -48,7 +48,7 @@ class DoubleCounter<Key1, Key2> {
 
     fun forEach(function: TriConsumer<Key1, Key2, Int>) {
         counter.forEach((BiConsumer { key1: Key1, key2IntegerMap: Counter<Key2> ->
-            key2IntegerMap.forEach { key2: Key2, value: Int? ->
+            key2IntegerMap.forEach { key2: Key2, value: Int ->
                 function.accept(
                     key1,
                     key2,

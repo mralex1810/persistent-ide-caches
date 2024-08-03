@@ -21,11 +21,11 @@ class RevisionsImpl(private val variables: LmdbString2Int, private val parents: 
         }
     }
 
-    override fun getParent(revision: Revision): Revision? {
+    override fun getParent(revision: Revision): Revision {
         return Revision(parents.get(revision.revision))
     }
 
-    override fun addRevision(parent: Revision): Revision? {
+    override fun addRevision(parent: Revision): Revision {
         val rev = Revision(revisionsCount++)
         parents.put(rev.revision, parent.revision)
         updateRevisionsCount()
@@ -33,7 +33,7 @@ class RevisionsImpl(private val variables: LmdbString2Int, private val parents: 
     }
 
     override fun addLastRevision(): Revision {
-        currentRevision = addRevision(currentRevision)!!
+        currentRevision = addRevision(currentRevision)
         updateCurrentRevision()
         return currentRevision
     }

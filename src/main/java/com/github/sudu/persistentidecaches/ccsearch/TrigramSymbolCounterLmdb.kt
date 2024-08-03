@@ -29,7 +29,7 @@ class TrigramSymbolCounterLmdb(
 
     private fun counterToList(counter: Map<TrigramSymbol, Int>): List<LongInt> {
         val list: MutableList<LongInt> = ArrayList()
-        counter.forEach { (trigramSymbol: TrigramSymbol, integer: Int?) ->
+        counter.forEach { (trigramSymbol: TrigramSymbol, integer: Int) ->
             list.add(
                 LongInt(
                     getKey(

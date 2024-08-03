@@ -27,8 +27,7 @@ class IndexesManager @JvmOverloads constructor(resetDBs: Boolean = false, dataPa
     private val lmdbGlobalPath: Path = dataPath.resolve(".lmdb")
     private val lmdbTrigramPath: Path = dataPath.resolve(".lmdb.trigrams")
     private val lmdbCamelCaseSearchPath: Path = dataPath.resolve(".lmdb.camelCaseSearch")
-    private val indexes: MutableMap<Class<*>, Index<*, *>> =
-        HashMap()
+    private val indexes: MutableMap<Class<*>, Index<*, *>> = HashMap()
 
     @JvmField
     val revisions: Revisions
@@ -70,7 +69,7 @@ class IndexesManager @JvmOverloads constructor(resetDBs: Boolean = false, dataPa
             .setMapSize(10485760)
             .setMaxDbs(7)
             .setMaxReaders(2)
-            .open(lmdbGlobalPath.toFile())
+            .open(lmdbGlobalPath.toAbsolutePath().toFile())
     }
 
     private fun initVariables(env: Env<ByteBuffer>): LmdbString2Int {
@@ -154,7 +153,7 @@ class IndexesManager @JvmOverloads constructor(resetDBs: Boolean = false, dataPa
                 lmdbSha12Int = LmdbSha12Int(globalEnv, "git_commits_to_revision")
                 val parser = GitParser(
                     git, this,
-                    lmdbSha12Int,
+                    lmdbSha12Int!!,
                     limit
                 )
                 if (revisions.currentRevision == Revision.NULL) {
@@ -179,7 +178,7 @@ class IndexesManager @JvmOverloads constructor(resetDBs: Boolean = false, dataPa
         revisions.currentRevision = targetRevision
     }
 
-    fun checkoutToGitRevision(commitHashName: String?) {
+    fun checkoutToGitRevision(commitHashName: String) {
         val revision = lmdbSha12Int!!.get(commitHashName)
         require(revision != -1)
         checkout(Revision(revision))

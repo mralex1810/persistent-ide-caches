@@ -59,12 +59,12 @@ class TrigramIndex(
                 if (currentRevision.revision > targetRevision.revision) {
                     cache.processDataCluster(
                         currentRevision
-                    ) { bytes: ByteArray?, file: Int, d: Int -> counter.decreaseIt(txn, bytes, file, d) }
+                    ) { bytes: ByteArray, file: Int, d: Int -> counter.decreaseIt(txn, bytes, file, d) }
                     currentRevision = revisions.getParent(currentRevision)
                 } else {
                     cache.processDataCluster(
                         targetRevision
-                    ) { bytes: ByteArray?, file: Int, d: Int -> counter.addIt(txn, bytes, file, d) }
+                    ) { bytes: ByteArray, file: Int, d: Int -> counter.addIt(txn, bytes, file, d) }
                     targetRevision = revisions.getParent(targetRevision)
                 }
                 //                counter.add(txn, deltasList);

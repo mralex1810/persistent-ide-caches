@@ -9,7 +9,7 @@ import java.nio.file.Path
 class TrigramFileCounter : Counter<TrigramFile> {
     constructor()
 
-    constructor(counter: Map<TrigramFile?, Int?>?) : super(counter)
+    constructor(counter: Map<TrigramFile, Int>) : super(counter)
 
     fun add(trigram: Trigram?, file: Path?, delta: Int) {
         add(TrigramFile(trigram!!, file!!), delta)

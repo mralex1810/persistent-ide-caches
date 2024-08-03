@@ -85,7 +85,7 @@ object VsCodeClient {
                         val read = scanner.read(BUFFER)
                         line = String(BUFFER, 0, read)
                         val changes = objectMapper.readValue(line, Changes::class.java)
-                        val processedChangesList: MutableList<Change?> = ArrayList()
+                        val processedChangesList: MutableList<Change> = ArrayList()
                         for ((uri, oldText, newText) in changes.modifyChanges) {
                             val path = repPath.relativize(Path.of(uri))
                             val modifyChange = ModifyChange(

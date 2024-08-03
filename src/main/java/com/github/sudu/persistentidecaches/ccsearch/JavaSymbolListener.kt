@@ -11,7 +11,7 @@ import org.antlr.v4.runtime.tree.ParseTree
 import org.antlr.v4.runtime.tree.ParseTreeWalker
 
 class JavaSymbolListener : JavaParserBaseListener() {
-    var symbols: Symbols = Symbols(ArrayList(), ArrayList(), ArrayList())
+    var symbols: Symbols = Symbols(arrayListOf(), arrayListOf(), arrayListOf())
 
     override fun enterClassDeclaration(ctx: ClassDeclarationContext) {
         symbols.classOrInterfaceSymbols.add(ctx.identifier().text)
@@ -30,7 +30,7 @@ class JavaSymbolListener : JavaParserBaseListener() {
             .map { it.variableDeclaratorId() }
             .map { it.identifier() }
             .map { it.text }
-            .forEach { e: String? -> symbols.fieldSymbols.add(e) }
+            .forEach { e: String -> symbols.fieldSymbols.add(e) }
     }
 
     override fun enterConstDeclaration(ctx: ConstDeclarationContext) {

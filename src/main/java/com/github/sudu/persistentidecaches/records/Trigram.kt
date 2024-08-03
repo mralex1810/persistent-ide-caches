@@ -35,6 +35,14 @@ data class Trigram(val trigram: ByteArray) : Comparable<Trigram> {
         )
     }
 
+    fun toInt(): Int {
+        return Companion.toInt(trigram)
+    }
+
+    fun toLong(): Long {
+        return Companion.toLong(trigram)
+    }
+
     companion object {
         fun toLong(bytes: ByteArray): Long {
             return toInt(bytes).toLong()

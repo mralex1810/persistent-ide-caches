@@ -60,7 +60,7 @@ open class Counter<Key> {
         return counter.getOrDefault(key, 0)
     }
 
-    val asMap: Map<Key, Int>
+    val asMap: MutableMap<Key, Int>
         get() = counter
 
     fun copy(): Counter<Key> {

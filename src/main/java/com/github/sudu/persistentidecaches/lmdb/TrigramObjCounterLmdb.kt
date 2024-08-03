@@ -22,24 +22,24 @@ abstract class TrigramObjCounterLmdb<U>(
         return getKey(trigram.trigram, cache.getNumber(num))
     }
 
-    protected fun getKey(trigram: ByteArray?, num: Int): Long {
+    protected fun getKey(trigram: ByteArray, num: Int): Long {
         return (Trigram.toLong(trigram) shl Integer.SIZE) + num
     }
 
-    fun addIt(txn: Txn<ByteBuffer>, bytes: ByteArray?, num: Int, delta: Int) {
+    fun addIt(txn: Txn<ByteBuffer>, bytes: ByteArray, num: Int, delta: Int) {
         db.add(txn, getKey(bytes, num), delta)
     }
 
-    fun decreaseIt(txn: Txn<ByteBuffer>, bytes: ByteArray?, num: Int, delta: Int) {
+    fun decreaseIt(txn: Txn<ByteBuffer>, bytes: ByteArray, num: Int, delta: Int) {
         db.decrease(txn, getKey(bytes, num), delta)
     }
 
     fun getObjForTrigram(trigram: Trigram): List<U> {
         val list: MutableList<U> = ArrayList()
         db.forEachFromTo(
-            { trigramFileLong: Long?, `val`: Int? ->
-                if (`val`!! > 0) {
-                    list.add(cache.getObject(trigramFileLong!!.toInt())!!)
+            { trigramFileLong: Long, value: Int ->
+                if (value > 0) {
+                    list.add(cache.getObject(trigramFileLong.toInt())!!)
                 }
             },
             trigram.toLong() shl Integer.SIZE,
@@ -52,7 +52,7 @@ abstract class TrigramObjCounterLmdb<U>(
         db.forEach { l: Long, i: Int ->
             consumer.accept(
                 Trigram(l shr Integer.SIZE),
-                cache.getObject(l.toInt()),
+                cache.getObject(l.toInt())!!,
                 i
             )
         }

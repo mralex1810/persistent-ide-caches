@@ -1,240 +1,252 @@
-package com.github.sudu.persistentidecaches;
+package com.github.sudu.persistentidecaches
 
-import com.github.sudu.persistentidecaches.changes.AddChange;
-import com.github.sudu.persistentidecaches.changes.Change;
-import com.github.sudu.persistentidecaches.changes.CopyChange;
-import com.github.sudu.persistentidecaches.changes.DeleteChange;
-import com.github.sudu.persistentidecaches.changes.FileChange;
-import com.github.sudu.persistentidecaches.changes.FileHolderChange;
-import com.github.sudu.persistentidecaches.changes.ModifyChange;
-import com.github.sudu.persistentidecaches.changes.RenameChange;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbSha12Int;
-import com.github.sudu.persistentidecaches.records.FilePointer;
-import com.github.sudu.persistentidecaches.records.Revision;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.diff.DiffEntry;
-import org.eclipse.jgit.lib.AbbreviatedObjectId;
-import org.eclipse.jgit.lib.Constants;
-import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.Ref;
-import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.revwalk.RevCommit;
-import org.eclipse.jgit.revwalk.RevWalk;
-import org.eclipse.jgit.treewalk.TreeWalk;
-import org.eclipse.jgit.treewalk.filter.AndTreeFilter;
-import org.eclipse.jgit.treewalk.filter.IndexDiffFilter;
-import org.eclipse.jgit.treewalk.filter.PathSuffixFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.github.sudu.persistentidecaches.GitParser
+import com.github.sudu.persistentidecaches.changes.*
+import com.github.sudu.persistentidecaches.lmdb.maps.LmdbSha12Int
+import com.github.sudu.persistentidecaches.records.FilePointer
+import com.github.sudu.persistentidecaches.records.Revision
+import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.api.errors.GitAPIException
+import org.eclipse.jgit.diff.DiffEntry
+import org.eclipse.jgit.lib.AbbreviatedObjectId
+import org.eclipse.jgit.lib.Constants
+import org.eclipse.jgit.lib.ObjectId
+import org.eclipse.jgit.lib.Repository
+import org.eclipse.jgit.revwalk.RevCommit
+import org.eclipse.jgit.revwalk.RevWalk
+import org.eclipse.jgit.treewalk.TreeWalk
+import org.eclipse.jgit.treewalk.filter.AndTreeFilter
+import org.eclipse.jgit.treewalk.filter.IndexDiffFilter
+import org.eclipse.jgit.treewalk.filter.PathSuffixFilter
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import java.io.IOException
+import java.nio.file.Path
+import java.util.*
+import java.util.function.Supplier
+import java.util.stream.Collectors
+import kotlin.math.min
 
+class GitParser @JvmOverloads constructor(
+    git: Git, private val indexesManager: IndexesManager, private val gitCommits2Revisions: LmdbSha12Int,
+    private val commitsLimit: Int = Int.MAX_VALUE
+) {
+    private val repository: Repository = git.repository
 
-public class GitParser {
-
-    public static final boolean PARSE_ONLY_TREE = false;
-    private static final Logger LOG = LoggerFactory.getLogger(GitParser.class);
-    private final Repository repository;
-    private final IndexesManager indexesManager;
-    private final int commitsLimit;
-    private final LmdbSha12Int gitCommits2Revisions;
-
-    public GitParser(final Git git, final IndexesManager indexesManager, final LmdbSha12Int gitCommits2Revisions) {
-        this(git, indexesManager, gitCommits2Revisions, Integer.MAX_VALUE);
-    }
-
-    public GitParser(final Git git, final IndexesManager indexesManager, final LmdbSha12Int gitCommits2Revisions,
-        final int commitsLimit) {
-        repository = git.getRepository();
-        this.indexesManager = indexesManager;
-        this.commitsLimit = commitsLimit;
-        this.gitCommits2Revisions = gitCommits2Revisions;
-    }
-
-
-    public void parseAll() throws IOException {
-        final var refs = repository.getRefDatabase().getRefs();
-        System.err.println("Parsing " + refs.size() + " refs");
-        int cnt = 0;
-        for (final Ref ref : refs) {
-            parseOne(ref.getObjectId());
-            System.err.println("Parsed " + ref.getName() + " " + (++cnt) + "/" + refs.size() + " refs");
+    @Throws(IOException::class)
+    fun parseAll() {
+        val refs = repository.refDatabase.refs
+        System.err.println("Parsing " + refs.size + " refs")
+        var cnt = 0
+        for (ref in refs) {
+            parseOne(ref.objectId)
+            System.err.println("Parsed " + ref.name + " " + (++cnt) + "/" + refs.size + " refs")
         }
     }
 
-    public void parseHead() throws IOException {
-        parseOne(repository.resolve(Constants.HEAD));
+    @Throws(IOException::class)
+    fun parseHead() {
+        parseOne(repository.resolve(Constants.HEAD))
     }
 
-    public String getHead() throws IOException {
-        try (final RevWalk walk = new RevWalk(repository)) {
-            return walk.parseCommit(repository.resolve(Constants.HEAD)).getName();
+    @get:Throws(IOException::class)
+    val head: String
+        get() {
+            RevWalk(repository).use { walk ->
+                return walk.parseCommit(repository.resolve(Constants.HEAD)).name
+            }
         }
-    }
 
-    private void parseOne(final ObjectId head) {
-        LOG.info("Parsing ref: " + head.getName());
-        try (final RevWalk walk = new RevWalk(repository)) {
-            final Deque<RevCommit> commits = new ArrayDeque<>();
-            RevCommit firstCommit = null;
-            {
-                walk.markStart(walk.parseCommit(head));
-                for (final var commit : walk) {
-                    commits.add(commit);
-                    if (gitCommits2Revisions.get(commit.getName()) != -1) {
-                        firstCommit = commit;
-                        break;
+    private fun parseOne(head: ObjectId) {
+        LOG.info("Parsing ref: " + head.name)
+        try {
+            RevWalk(repository).use { walk ->
+                val commits: Deque<RevCommit> = ArrayDeque()
+                var firstCommit: RevCommit? = null
+                run {
+                    walk.markStart(walk.parseCommit(head))
+                    for (commit in walk) {
+                        commits.add(commit)
+                        if (gitCommits2Revisions.get(commit.name) != -1) {
+                            firstCommit = commit
+                            break
+                        }
                     }
                 }
-            }
-            if (!commits.iterator().hasNext()) {
-                throw new RuntimeException("Repository hasn't commits");
-            }
-            LOG.info(String.format("%d commits found to process", commits.size()));
-
-            if (firstCommit == null) {
-                indexesManager.checkout(Revision.NULL);
-                firstCommit = commits.removeLast();
-                parseFirstCommit(firstCommit);
-            } else {
-                final var rev = new Revision(gitCommits2Revisions.get(firstCommit.getName()));
-                indexesManager.checkout(rev);
-            }
-            var prevCommit = firstCommit;
-
-            int commitsParsed = 0;
-            final int totalCommits = Math.min(commitsLimit, commits.size());
-            while (commitsParsed < totalCommits) {
-                if (commitsParsed % 100 == 0) {
-                    System.err.printf("Processed %d commits out of %d %n", commitsParsed, totalCommits);
+                if (!commits.iterator().hasNext()) {
+                    throw RuntimeException("Repository hasn't commits")
                 }
-                final var commit = commits.removeLast();
-                parseCommit(commit, prevCommit);
-                prevCommit = commit;
-                commitsParsed++;
+                LOG.info(String.format("%d commits found to process", commits.size))
+
+                if (firstCommit == null) {
+                    indexesManager.checkout(Revision.NULL)
+                    firstCommit = commits.removeLast()
+                    parseFirstCommit(firstCommit)
+                } else {
+                    val rev = Revision(gitCommits2Revisions.get(firstCommit!!.name))
+                    indexesManager.checkout(rev)
+                }
+                var prevCommit = firstCommit
+
+                var commitsParsed = 0
+                val totalCommits = min(commitsLimit.toDouble(), commits.size.toDouble()).toInt()
+                while (commitsParsed < totalCommits) {
+                    if (commitsParsed % 100 == 0) {
+                        System.err.printf("Processed %d commits out of %d %n", commitsParsed, totalCommits)
+                    }
+                    val commit = commits.removeLast()
+                    parseCommit(commit, prevCommit)
+                    prevCommit = commit
+                    commitsParsed++
+                }
+                System.err.println("Processed $totalCommits commits")
             }
-            System.err.println("Processed " + totalCommits + " commits");
-        } catch (final GitAPIException | IOException e) {
-            throw new RuntimeException(e);
+        } catch (e: GitAPIException) {
+            throw RuntimeException(e)
+        } catch (e: IOException) {
+            throw RuntimeException(e)
         }
     }
 
 
-    void sendChanges(final List<Change> changes, final RevCommit commit) {
-        changes.forEach(it -> {
-            if (Objects.requireNonNull(it) instanceof final FileChange fileChange) {
-                indexesManager.getFileCache().tryRegisterNewObj(fileChange.place.file);
-            } else if (it instanceof final FileHolderChange fileHolderChange) {
-                indexesManager.getFileCache().tryRegisterNewObj(fileHolderChange.getOldFileName());
-                indexesManager.getFileCache().tryRegisterNewObj(fileHolderChange.getNewFileName());
-            }
-        });
-        final int rev = gitCommits2Revisions.get(commit.getName());
-        if (rev == -1) {
-            indexesManager.revisions.setCurrentRevision(indexesManager.revisions.addRevision(
-                    indexesManager.revisions.getCurrentRevision()));
-            gitCommits2Revisions.put(commit.getName(), indexesManager.revisions.getCurrentRevision().revision);
-            indexesManager.applyChanges(changes);
-        } else {
-            indexesManager.checkout(new Revision(rev));
-        }
-    }
-
-    private void parseCommit(final RevCommit commit, final RevCommit prevCommit) throws IOException, GitAPIException {
-        try (final var tw = new TreeWalk(repository)) {
-            tw.addTree(prevCommit.getTree());
-            tw.addTree(commit.getTree());
-            tw.setFilter(IndexDiffFilter.ANY_DIFF);
-            tw.setFilter(AndTreeFilter.create(IndexDiffFilter.ANY_DIFF, PathSuffixFilter.create(".java")));
-            tw.setRecursive(true);
-            final var rawChanges = DiffEntry.scan(tw);
+    @Throws(IOException::class, GitAPIException::class)
+    private fun parseCommit(commit: RevCommit, prevCommit: RevCommit?) {
+        TreeWalk(repository).use { tw ->
+            tw.addTree(prevCommit!!.tree)
+            tw.addTree(commit.tree)
+            tw.filter = IndexDiffFilter.ANY_DIFF
+            tw.filter = AndTreeFilter.create(IndexDiffFilter.ANY_DIFF, PathSuffixFilter.create(".java"))
+            tw.isRecursive = true
+            val rawChanges = DiffEntry.scan(tw)
             sendChanges(rawChanges.stream()
-                    .map(it -> {
-                        try {
-                            return processDiff(it);
-                        } catch (final IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    })
-                    .flatMap(List::stream)
-                    .collect(Collectors.toList()),
+                .map<List<Change>> { it: DiffEntry ->
+                    try {
+                        return@map processDiff(it)
+                    } catch (e: IOException) {
+                        throw RuntimeException(e)
+                    }
+                }
+                .flatMap<Change> { obj: List<Change> -> obj.stream() }
+                .collect(Collectors.toList()),
                 commit
-            );
+            )
         }
     }
 
-    Supplier<String> fileGetter(final AbbreviatedObjectId abbreviatedObjectId) {
-        return () -> {
+    fun sendChanges(changes: List<Change>, commit: RevCommit) {
+        changes.forEach {
+            Objects.requireNonNull(it)
+            if (it is FileChange) {
+                indexesManager.fileCache.tryRegisterNewObj(it.place.file)
+            } else if (it is FileHolderChange) {
+                indexesManager.fileCache.tryRegisterNewObj(it.oldFileName)
+                indexesManager.fileCache.tryRegisterNewObj(it.newFileName)
+            }
+        }
+        val rev = gitCommits2Revisions.get(commit.name)
+        if (rev == -1) {
+            indexesManager.revisions.currentRevision = indexesManager.revisions.addRevision(
+                indexesManager.revisions.currentRevision
+            )
+            gitCommits2Revisions.put(commit.name, indexesManager.revisions.currentRevision.revision)
+            indexesManager.applyChanges(changes)
+        } else {
+            indexesManager.checkout(Revision(rev))
+        }
+    }
+
+
+    fun fileGetter(abbreviatedObjectId: AbbreviatedObjectId): Supplier<String> {
+        return Supplier {
             try {
-                return new String(repository.open(abbreviatedObjectId.toObjectId()).getBytes());
-            } catch (final IOException e) {
-                throw new RuntimeException(e);
+                return@Supplier String(repository.open(abbreviatedObjectId.toObjectId()).bytes)
+            } catch (e: IOException) {
+                throw RuntimeException(e)
             }
-        };
+        }
     }
 
-    List<Change> processDiff(final DiffEntry diffEntry) throws IOException {
-        return switch (diffEntry.getChangeType()) {
-            case ADD -> List.of(new AddChange(System.currentTimeMillis(),
-                new FilePointer(Path.of(diffEntry.getNewPath()), 0),
-                new String(repository.open(diffEntry.getNewId().toObjectId()).getBytes()))
-            );
-            case MODIFY -> List.of(
-                new ModifyChange(System.currentTimeMillis(),
-                    fileGetter(diffEntry.getOldId()),
-                    fileGetter(diffEntry.getNewId()),
-                    Path.of(diffEntry.getOldPath()),
-                    Path.of(diffEntry.getNewPath())
-                ));
-            case DELETE -> List.of(
-                new DeleteChange(System.currentTimeMillis(),
-                    new FilePointer(Path.of(diffEntry.getOldPath()), 0),
-                    new String(repository.open(diffEntry.getOldId().toObjectId()).getBytes())));
-            case RENAME -> List.of(
-                new RenameChange(System.currentTimeMillis(),
-                    fileGetter(diffEntry.getOldId()),
-                    fileGetter(diffEntry.getNewId()),
-                    Path.of(diffEntry.getOldPath()),
-                    Path.of(diffEntry.getNewPath())
-                ));
-            case COPY -> List.of(
-                new CopyChange(System.currentTimeMillis(),
-                    fileGetter(diffEntry.getOldId()),
-                    fileGetter(diffEntry.getNewId()),
-                    Path.of(diffEntry.getOldPath()),
-                    Path.of(diffEntry.getNewPath())
-                ));
-        };
+    @Throws(IOException::class)
+    fun processDiff(diffEntry: DiffEntry): List<Change> {
+        return when (diffEntry.changeType) {
+            DiffEntry.ChangeType.ADD -> java.util.List.of<Change>(
+                AddChange(
+                    System.currentTimeMillis(),
+                    FilePointer(Path.of(diffEntry.newPath), 0),
+                    String(repository.open(diffEntry.newId.toObjectId()).bytes)
+                )
+            )
+
+            DiffEntry.ChangeType.MODIFY -> java.util.List.of<Change>(
+                ModifyChange(
+                    System.currentTimeMillis(),
+                    fileGetter(diffEntry.oldId),
+                    fileGetter(diffEntry.newId),
+                    Path.of(diffEntry.oldPath),
+                    Path.of(diffEntry.newPath)
+                )
+            )
+
+            DiffEntry.ChangeType.DELETE -> java.util.List.of<Change>(
+                DeleteChange(
+                    System.currentTimeMillis(),
+                    FilePointer(Path.of(diffEntry.oldPath), 0),
+                    String(repository.open(diffEntry.oldId.toObjectId()).bytes)
+                )
+            )
+
+            DiffEntry.ChangeType.RENAME -> java.util.List.of<Change>(
+                RenameChange(
+                    System.currentTimeMillis(),
+                    fileGetter(diffEntry.oldId),
+                    fileGetter(diffEntry.newId),
+                    Path.of(diffEntry.oldPath),
+                    Path.of(diffEntry.newPath)
+                )
+            )
+
+            DiffEntry.ChangeType.COPY -> java.util.List.of<Change>(
+                CopyChange(
+                    System.currentTimeMillis(),
+                    fileGetter(diffEntry.oldId),
+                    fileGetter(diffEntry.newId),
+                    Path.of(diffEntry.oldPath),
+                    Path.of(diffEntry.newPath)
+                )
+            )
+        }
     }
 
-    private void parseFirstCommit(final RevCommit first) {
-        final int rev = gitCommits2Revisions.get(first.getName());
+    private fun parseFirstCommit(first: RevCommit?) {
+        val rev = gitCommits2Revisions.get(first!!.name)
         if (rev != -1) {
-            indexesManager.revisions.setCurrentRevision(new Revision(rev));
-            return;
+            indexesManager.revisions.currentRevision = Revision(rev)
+            return
         }
-        final List<Change> changes = new ArrayList<>();
-        try (final TreeWalk treeWalk = new TreeWalk(repository)) {
-            treeWalk.addTree(first.getTree());
-            treeWalk.setFilter(AndTreeFilter.create(IndexDiffFilter.ANY_DIFF, PathSuffixFilter.create(".java")));
-            treeWalk.setRecursive(true);
-            while (treeWalk.next()) {
-                changes.add(new AddChange(System.currentTimeMillis(),
-                    new FilePointer(Path.of(treeWalk.getPathString()), 0),
-                    new String(repository.open(treeWalk.getObjectId(0)).getBytes()))
-                );
+        val changes: MutableList<Change> = ArrayList()
+        try {
+            TreeWalk(repository).use { treeWalk ->
+                treeWalk.addTree(first.tree)
+                treeWalk.filter = AndTreeFilter.create(IndexDiffFilter.ANY_DIFF, PathSuffixFilter.create(".java"))
+                treeWalk.isRecursive = true
+                while (treeWalk.next()) {
+                    changes.add(
+                        AddChange(
+                            System.currentTimeMillis(),
+                            FilePointer(Path.of(treeWalk.pathString), 0),
+                            String(repository.open(treeWalk.getObjectId(0)).bytes)
+                        )
+                    )
+                }
             }
-        } catch (final IOException e) {
-            throw new RuntimeException(e);
+        } catch (e: IOException) {
+            throw RuntimeException(e)
         }
-        sendChanges(changes, first);
+        sendChanges(changes, first)
+    }
+
+    companion object {
+        const val PARSE_ONLY_TREE: Boolean = false
+        private val LOG: Logger = LoggerFactory.getLogger(GitParser::class.java)
     }
 }

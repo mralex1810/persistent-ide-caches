@@ -13,5 +13,5 @@ interface CountingCache<V> {
 
     fun init()
 
-    fun forEach(consumer: BiConsumer<V, Number?>?)
+    fun forEach(consumer: BiConsumer<V, Number>)
 }
