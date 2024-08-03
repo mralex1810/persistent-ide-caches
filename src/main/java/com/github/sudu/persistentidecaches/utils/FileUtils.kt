@@ -6,12 +6,10 @@ import java.nio.file.Path
 import java.util.*
 
 object FileUtils {
-    @JvmStatic
     fun createParentDirectories(vararg paths: Path) {
-        Arrays.stream(paths).forEach { createParentDirectories() }
+        paths.forEach { createParentDirectories(it) }
     }
 
-    @JvmStatic
     fun createParentDirectories(path: Path) {
         try {
             Files.createDirectories(path)

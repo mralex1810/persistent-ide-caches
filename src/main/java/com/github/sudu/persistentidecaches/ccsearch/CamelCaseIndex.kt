@@ -96,20 +96,22 @@ class CamelCaseIndex(
 
     companion object {
         var CAMEL_CASE_PATTERN: Pattern = Pattern.compile("[A-Za-z][a-z0-9]*([A-Z][a-z0-9]*)*")
-        fun getSymbolsFromString(javaFile: String?): Symbols {
+        fun getSymbolsFromString(javaFile: String): Symbols {
             return JavaSymbolListener.getSymbolsFromString(javaFile)
         }
 
-        fun isCamelCase(name: String?): Boolean {
+        fun isCamelCase(name: String): Boolean {
             return CAMEL_CASE_PATTERN.matcher(name).matches()
         }
 
         fun getInterestTrigrams(symbolName: String): List<Trigram> {
-            val parts = symbolName.split("(?=[A-Z])".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+            val parts = symbolName.split(Pattern.compile("(?=[A-Z])"))
+                    .dropWhile { it.isEmpty() }
+                    .dropLastWhile { it.isEmpty() }
+                    .toTypedArray()
             val trigrams: MutableList<Trigram> = ArrayList()
-            val normalizedParts =
-                Stream.concat(Stream.of("$"), Arrays.stream(parts)).map { obj: String -> obj.toByteArray() }
-                    .toList()
+            val normalizedParts = Stream.concat(Stream.of("$"), Arrays.stream(parts)).map { it.toByteArray() }
+                .toList()
             for (partIndex in normalizedParts.indices) {
                 val part = normalizedParts[partIndex]
                 for (indexInPart in normalizedParts[partIndex].indices) {

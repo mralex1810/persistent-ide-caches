@@ -11,24 +11,21 @@ import com.github.sudu.persistentidecaches.utils.DummyCountingCache
 import com.github.sudu.persistentidecaches.utils.DummyRevisions
 import com.github.sudu.persistentidecaches.utils.FileUtils.createParentDirectories
 import org.eclipse.jgit.api.Git
-import org.eclipse.jgit.api.errors.GitAPIException
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers
 import org.mockito.Mockito
-import java.io.IOException
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argumentCaptor
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.function.Consumer
 
 class GitParserTest {
     @TempDir
-    var gitDir: Path? = null
+    lateinit var gitDir: Path
 
     @Test
-    @Throws(IOException::class, GitAPIException::class)
     fun testParseOneBranch() {
         Git.init().setDirectory(gitDir!!.toFile()).call().use { git ->
             for (c in IntegrationIndexesTest.FILES) {
@@ -44,16 +41,14 @@ class GitParserTest {
             }
             val indexesManager = mockedIndexManager()
             val db = Mockito.mock(LmdbSha12Int::class.java)
-            Mockito.doReturn(-1).`when`(db).get(ArgumentMatchers.any())
+            Mockito.`when`(db.get(anyOrNull())).thenReturn(-1)
 
-            val requestCaptor = ArgumentCaptor.forClass(
-                MutableList::class.java
-            )
+            val requestCaptor = argumentCaptor<List<Change>>()
 
             GitParser(git, indexesManager, db).parseHead()
 
             Mockito.verify(indexesManager, Mockito.times(IntegrationIndexesTest.FILES.size))
-                .applyChanges(requestCaptor.capture() as List<Change>)
+                .applyChanges(requestCaptor.capture())
 
             Assertions.assertEquals(requestCaptor.allValues.size, IntegrationIndexesTest.FILES.size)
             requestCaptor.allValues.forEach { Assertions.assertEquals(it.size, 1) }
@@ -72,9 +67,9 @@ class GitParserTest {
                 Assertions.assertEquals(change[0].addedString, file.toString())
             })
         }
-        Git.open(gitDir!!.toFile()).use { git ->
+        Git.open(gitDir.toFile()).use { git ->
             for (c in IntegrationIndexesTest.FILES) {
-                val file = gitDir!!.resolve(c)
+                val file = gitDir.resolve(c)
                 Files.writeString(file, c.toString().repeat(3))
                 git.add()
                     .addFilepattern(c.toString())
@@ -85,16 +80,14 @@ class GitParserTest {
             }
             val indexesManager = mockedIndexManager()
             val db = Mockito.mock(LmdbSha12Int::class.java)
-            Mockito.doReturn(-1).`when`(db).get(ArgumentMatchers.any())
+            Mockito.`when`(db.get(anyOrNull())).thenReturn(-1)
 
-            val requestCaptor = ArgumentCaptor.forClass(
-                MutableList::class.java
-            )
+            val requestCaptor = argumentCaptor<List<Change>>()
 
             GitParser(git, indexesManager, db).parseHead()
 
             Mockito.verify(indexesManager, Mockito.times(2 * IntegrationIndexesTest.FILES.size))
-                .applyChanges(requestCaptor.capture() as List<Change>)
+                .applyChanges(requestCaptor.capture())
 
             Assertions.assertEquals(requestCaptor.allValues.size, 2 * IntegrationIndexesTest.FILES.size)
             requestCaptor.allValues.forEach { Assertions.assertEquals(it.size, 1) }
@@ -122,9 +115,10 @@ class GitParserTest {
     companion object {
         fun mockedIndexManager(): IndexesManager {
             val indexesManager = Mockito.mock(IndexesManager::class.java)
-            Mockito.doReturn(DummyRevisions()).`when`(indexesManager).revisions
-            Mockito.doReturn(DummyCountingCache<Any>()).`when`(indexesManager).fileCache
+            Mockito.`when`(indexesManager.revisions).thenReturn(DummyRevisions())
+            Mockito.`when`(indexesManager.fileCache).thenReturn(DummyCountingCache())
             return indexesManager
         }
     }
+
 }

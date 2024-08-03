@@ -7,7 +7,7 @@ import java.util.function.BiConsumer
 class DummyCountingCache<V> : CountingCache<V> {
     val counter: AtomicInteger = AtomicInteger()
     val numToObj: MutableMap<Int, V> = HashMap()
-    val objToNum: MutableMap<V, Int?> = HashMap()
+    val objToNum: MutableMap<V, Int> = HashMap()
 
     override fun getNumber(obj: V): Int {
         return objToNum[obj]!!
@@ -30,7 +30,7 @@ class DummyCountingCache<V> : CountingCache<V> {
     override fun init() {
     }
 
-    override fun forEach(consumer: BiConsumer<V, Number?>?) {
-        objToNum.forEach(consumer!!)
+    override fun forEach(consumer: BiConsumer<V, Number>) {
+        objToNum.forEach(consumer)
     }
 }

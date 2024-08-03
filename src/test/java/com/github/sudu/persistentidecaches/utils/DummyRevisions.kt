@@ -8,8 +8,8 @@ class DummyRevisions : Revisions {
     override var currentRevision: Revision = Revision(0)
     private var revisions = 1
 
-    override fun getParent(revision: Revision): Revision? {
-        return parents[revision]
+    override fun getParent(revision: Revision): Revision {
+        return parents[revision]!!
     }
 
     override fun addRevision(parent: Revision): Revision {
@@ -19,7 +19,7 @@ class DummyRevisions : Revisions {
     }
 
     override fun addLastRevision(): Revision {
-        currentRevision = addRevision(currentRevision!!)
+        currentRevision = addRevision(currentRevision)
         return currentRevision
     }
 }

@@ -12,6 +12,7 @@ import com.github.sudu.persistentidecaches.utils.indexes.EchoIndex
 import com.github.sudu.persistentidecaches.utils.indexes.SizeCounterIndex
 import org.eclipse.jgit.api.Git
 import org.lmdbjava.Env
+import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.file.FileVisitResult
@@ -24,12 +25,13 @@ import java.util.function.Consumer
 
 class IndexesManager @JvmOverloads constructor(resetDBs: Boolean = false, dataPath: Path = Path.of("")) :
     AutoCloseable {
+
+    private val logger = LoggerFactory.getLogger(IndexesManager::class.java.name)
     private val lmdbGlobalPath: Path = dataPath.resolve(".lmdb")
     private val lmdbTrigramPath: Path = dataPath.resolve(".lmdb.trigrams")
     private val lmdbCamelCaseSearchPath: Path = dataPath.resolve(".lmdb.camelCaseSearch")
     private val indexes: MutableMap<Class<*>, Index<*, *>> = HashMap()
 
-    @JvmField
     val revisions: Revisions
     private val pathCache: CountingCacheImpl<Path>
     val variables: LmdbString2Int
@@ -65,11 +67,12 @@ class IndexesManager @JvmOverloads constructor(resetDBs: Boolean = false, dataPa
     }
 
     private fun initGlobalEnv(): Env<ByteBuffer> {
+        logger.info(lmdbGlobalPath.toFile().toString())
         return Env.create()
             .setMapSize(10485760)
             .setMaxDbs(7)
             .setMaxReaders(2)
-            .open(lmdbGlobalPath.toAbsolutePath().toFile())
+            .open(lmdbGlobalPath.toFile())
     }
 
     private fun initVariables(env: Env<ByteBuffer>): LmdbString2Int {
@@ -215,7 +218,7 @@ class IndexesManager @JvmOverloads constructor(resetDBs: Boolean = false, dataPa
             }
 
             @Throws(IOException::class)
-            override fun postVisitDirectory(dir: Path, exc: IOException): FileVisitResult {
+            override fun postVisitDirectory(dir: Path, exc: IOException?): FileVisitResult {
                 Files.delete(dir)
                 return FileVisitResult.CONTINUE
             }

@@ -43,6 +43,15 @@ data class Trigram(val trigram: ByteArray) : Comparable<Trigram> {
         return Companion.toLong(trigram)
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || javaClass != other.javaClass) return false
+
+        other as Trigram
+
+        return trigram.contentEquals(other.trigram)
+    }
+
     companion object {
         fun toLong(bytes: ByteArray): Long {
             return toInt(bytes).toLong()

@@ -32,7 +32,8 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params:$junitJupiterVersion")
     testImplementation("org.junit.platform:junit-platform-suite:$junitPlatformVersion")
 
-    testImplementation("org.mockito:mockito-core:5.2.0")
+    // https://mvnrepository.com/artifact/org.mockito.kotlin/mockito-kotlin
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
 
     implementation("org.lmdbjava:lmdbjava:0.8.3")
 
@@ -62,7 +63,14 @@ sourceSets {
 
 tasks.named<AntlrTask>("generateGrammarSource") {
     maxHeapSize = "64m"
-    arguments.addAll(listOf("-visitor", "-long-messages", "-package", "com.github.sudu.persistentidecaches.javaparaser"))
+    arguments.addAll(
+        listOf(
+            "-visitor",
+            "-long-messages",
+            "-package",
+            "com.github.sudu.persistentidecaches.javaparaser"
+        )
+    )
     outputDirectory = file(generationOutput)
 }
 
@@ -77,7 +85,7 @@ tasks.named<Jar>("jar") {
     archiveFileName.set("${project.name}-${project.version}-all.jar")
 }
 
-tasks.withType<JavaCompile>{
+tasks.withType<JavaCompile> {
     dependsOn("generateGrammarSource")
 }
 
@@ -87,6 +95,14 @@ tasks.withType<KotlinCompile> {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.test {
+    dependsOn("generateGrammarSource")
+    jvmArgs(
+        "--add-opens", "java.base/java.nio=ALL-UNNAMED",
+        "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED"
+    )
 }
 
 tasks.clean {

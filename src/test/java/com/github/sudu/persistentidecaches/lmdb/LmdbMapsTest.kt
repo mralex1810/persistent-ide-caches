@@ -13,8 +13,8 @@ import java.nio.file.Path
 
 class LmdbMapsTest {
     @TempDir
-    var directory: Path? = null
-    var env: Env<ByteBuffer>? = null
+    lateinit var directory: Path
+    lateinit var env: Env<ByteBuffer>
 
     @BeforeEach
     fun prepare() {
@@ -22,11 +22,10 @@ class LmdbMapsTest {
             .setMapSize(10485760)
             .setMaxDbs(1)
             .setMaxReaders(1)
-            .open(directory!!.toFile())
+            .open(directory.toFile())
     }
 
     @Test
-    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
     fun testInt2Int() {
         val map = LmdbInt2Int(env!!, "a")
         val list = java.util.List.of(
@@ -39,7 +38,6 @@ class LmdbMapsTest {
     }
 
     @Test
-    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
     fun testInt2Long() {
         val map = LmdbInt2Long(env!!, "a")
         val list = java.util.List.of(
@@ -52,7 +50,6 @@ class LmdbMapsTest {
     }
 
     @Test
-    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
     fun testLong2Int() {
         val map = LmdbLong2Int(env!!, "a")
         val list = java.util.List.of(
@@ -66,7 +63,6 @@ class LmdbMapsTest {
     }
 
     @Test
-    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
     fun testInt2File() {
         val map = LmdbInt2Path(env!!, "a")
         val list = java.util.List.of(
@@ -92,7 +88,6 @@ class LmdbMapsTest {
     }
 
     @Test
-    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
     fun testInt2String() {
         val map = LmdbInt2String(env!!, "a")
         val list = java.util.List.of(
@@ -105,7 +100,6 @@ class LmdbMapsTest {
     }
 
     @Test
-    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
     fun testSha12String() {
         val map = LmdbInt2String(env!!, "a")
         val list = java.util.List.of(
@@ -118,7 +112,6 @@ class LmdbMapsTest {
     }
 
 
-    @Throws(NoSuchMethodException::class, InvocationTargetException::class, IllegalAccessException::class)
     fun <T, V> testMap(
         map: LmdbMap,
         list: List<Pair<T, V>>,
