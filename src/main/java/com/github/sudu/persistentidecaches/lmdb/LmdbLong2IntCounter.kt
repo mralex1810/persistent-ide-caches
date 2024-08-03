@@ -1,69 +1,64 @@
-package com.github.sudu.persistentidecaches.lmdb;
+package com.github.sudu.persistentidecaches.lmdb
 
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbLong2Int;
-import com.github.sudu.persistentidecaches.records.LongInt;
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.function.BiConsumer;
-import org.lmdbjava.CursorIterable;
-import org.lmdbjava.Env;
-import org.lmdbjava.KeyRange;
-import org.lmdbjava.Txn;
+import com.github.sudu.persistentidecaches.lmdb.maps.LmdbLong2Int
+import com.github.sudu.persistentidecaches.records.LongInt
+import org.lmdbjava.Env
+import org.lmdbjava.KeyRange
+import org.lmdbjava.Txn
+import java.nio.ByteBuffer
+import java.util.function.BiConsumer
+import java.util.function.Consumer
 
-public class LmdbLong2IntCounter extends LmdbLong2Int {
-
-    public LmdbLong2IntCounter(final Env<ByteBuffer> env, final String dbName) {
-        super(env, dbName);
+class LmdbLong2IntCounter(env: Env<ByteBuffer>, dbName: String) : LmdbLong2Int(env, dbName) {
+    fun countGet(key: Long): Int {
+        val res = getImpl(getKey(key))
+        return res?.getInt() ?: 0
     }
 
-
-    public int countGet(final long key) {
-        final ByteBuffer res = getImpl(getKey(key));
-        return res == null ? 0 : res.getInt();
-    }
-
-    public void addAll(final List<LongInt> list) {
-        try (final var txn = env.txnWrite()) {
-            addAll(txn, list);
-            txn.commit();
+    fun addAll(list: List<LongInt>) {
+        env.txnWrite().use { txn ->
+            addAll(txn, list)
+            txn.commit()
         }
     }
 
-    public void addAll(final Txn<ByteBuffer> txn, final List<LongInt> list) {
-        list.forEach(it -> add(txn, it.l(), it.i()));
+    fun addAll(txn: Txn<ByteBuffer>, list: List<LongInt>) {
+        list.forEach(Consumer { it: LongInt -> add(txn, it.l, it.i) })
     }
 
-    public void decreaseAll(final List<LongInt> list) {
-        try (final var txn = env.txnWrite()) {
-            list.forEach(it -> add(txn, it.l(), -it.i()));
-            txn.commit();
+    fun decreaseAll(list: List<LongInt>) {
+        env.txnWrite().use { txn ->
+            list.forEach(Consumer { it: LongInt -> add(txn, it.l, -it.i) })
+            txn.commit()
         }
     }
 
-    public void add(final Txn<ByteBuffer> txn, final long key, final int delta) {
-        final var keyBytes = getKey(key);
-        final var found = db.get(txn, keyBytes);
-        final var val = found == null ? 0 : txn.val().getInt();
-        db.put(txn, keyBytes, getValue(val + delta));
+    fun add(txn: Txn<ByteBuffer>, key: Long, delta: Int) {
+        val keyBytes = getKey(key)
+        val found = db[txn, keyBytes]
+        val `val` = if (found == null) 0 else txn.`val`().getInt()
+        db.put(txn, keyBytes, getValue(`val` + delta))
     }
 
-    public void decrease(final Txn<ByteBuffer> txn, final long key, final int delta) {
-        add(txn, key, -delta);
+    fun decrease(txn: Txn<ByteBuffer>, key: Long, delta: Int) {
+        add(txn, key, -delta)
     }
 
-    public void forEachFromTo(final BiConsumer<Long, Integer> consumer, final long from, final long to) {
-        try (final var txn = env.txnRead()) {
-            try (final CursorIterable<ByteBuffer> ci = db.iterate(txn,
-                    KeyRange.closedOpen(allocateLong(from), allocateLong(to)))) {
-                for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
-                    final long key = kv.key().getLong();
-                    consumer.accept(key, kv.val().getInt());
+    fun forEachFromTo(consumer: BiConsumer<Long, Int>, from: Long, to: Long) {
+        env.txnRead().use { txn ->
+            db.iterate(
+                txn,
+                KeyRange.closedOpen(allocateLong(from), allocateLong(to))
+            ).use { ci ->
+                for (kv in ci) {
+                    val key = kv.key().getLong()
+                    consumer.accept(key, kv.`val`().getInt())
                 }
             }
         }
     }
 
-    public void forEach(final BiConsumer<Long, Integer> consumer) {
-        forEachFromTo(consumer, 0L, Long.MAX_VALUE);
+    fun forEach(consumer: BiConsumer<Long, Int>) {
+        forEachFromTo(consumer, 0L, Long.MAX_VALUE)
     }
 }

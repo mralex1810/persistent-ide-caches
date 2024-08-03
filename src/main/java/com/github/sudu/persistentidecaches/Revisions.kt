@@ -1,16 +1,13 @@
-package com.github.sudu.persistentidecaches;
+package com.github.sudu.persistentidecaches
 
-import com.github.sudu.persistentidecaches.records.Revision;
+import com.github.sudu.persistentidecaches.records.Revision
 
-public interface Revisions {
+interface Revisions {
+    fun getParent(revision: Revision): Revision?
 
-    Revision getParent(Revision revision);
+    fun addRevision(parent: Revision): Revision
 
-    Revision addRevision(Revision parent);
+    fun addLastRevision(): Revision
 
-    Revision addLastRevision();
-
-    Revision getCurrentRevision();
-
-    void setCurrentRevision(Revision revision);
+    var currentRevision: Revision
 }

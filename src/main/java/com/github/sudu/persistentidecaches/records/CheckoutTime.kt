@@ -1,5 +1,4 @@
-package com.github.sudu.persistentidecaches.records;
+package com.github.sudu.persistentidecaches.records
 
-public record CheckoutTime(long timestamp, Revision revision) {
-
-}
+@JvmRecord
+data class CheckoutTime(val timestamp: Long, val revision: Revision)

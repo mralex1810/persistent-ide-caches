@@ -1,18 +1,17 @@
-package com.github.sudu.persistentidecaches;
+package com.github.sudu.persistentidecaches
 
-import java.util.function.BiConsumer;
+import java.util.function.BiConsumer
 
-public interface CountingCache<V> {
+interface CountingCache<V> {
+    fun getNumber(obj: V): Int
 
-    int getNumber(V obj);
+    fun getObject(objNum: Int): V?
 
-    V getObject(int objNum);
+    fun tryRegisterNewObj(obj: V)
 
-    void tryRegisterNewObj(V obj);
+    fun restoreObjectsFromDB()
 
-    void restoreObjectsFromDB();
+    fun init()
 
-    void init();
-
-    void forEach(BiConsumer<V, Number> consumer);
+    fun forEach(consumer: BiConsumer<V, Number?>?)
 }

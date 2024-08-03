@@ -1,73 +1,80 @@
-package com.github.sudu.persistentidecaches;
+package com.github.sudu.persistentidecaches
+
+import com.github.sudu.persistentidecaches.ccsearch.TrigramSymbolCounterLmdb
+import com.github.sudu.persistentidecaches.records.Revision
+import com.github.sudu.persistentidecaches.records.Trigram
+import com.github.sudu.persistentidecaches.symbols.Symbol
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.stream.Collectors
+import java.util.stream.Stream
 
 
-import com.github.sudu.persistentidecaches.records.Revision;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-public class Main {
-
-
-    public static final String SEPARATOR = "-----";
+object Main {
+    const val SEPARATOR: String = "-----"
 
     // needs java options:
     /*
     --add-opens java.base/java.nio=ALL-UNNAMED
     --add-opens java.base/sun.nio.ch=ALL-UNNAMED
     */
-    public static void main(final String[] args) {
-        if (args.length < 1) {
-            throw new RuntimeException("Needs path to repository as first arg");
+    @JvmStatic
+    fun main(args: Array<String>) {
+        if (args.size < 1) {
+            throw RuntimeException("Needs path to repository as first arg")
         }
-        try (final IndexesManager manager = new IndexesManager(true)) {
+        IndexesManager(true).use { manager ->
 //            final var trigramHistoryIndex = manager.addTrigramIndex();
 //            final var trigramIndexUtils = trigramHistoryIndex.getTrigramIndexUtils();
-            final var camelCaseIndex = manager.addCamelCaseIndex();
-            final var camelCaseIndexUtils = camelCaseIndex.getUtils();
-//            final int LIMIT = 10;
-            final var sizeCounterIndex = manager.addSizeCounterIndex();
-            final int LIMIT = Integer.MAX_VALUE;
-            benchmark(() -> manager.parseGitRepository(Path.of(args[0]), LIMIT));
+            val camelCaseIndex = manager.addCamelCaseIndex()
+            val camelCaseIndexUtils = camelCaseIndex.utils
+            //            final int LIMIT = 10;
+            val sizeCounterIndex = manager.addSizeCounterIndex()
+            val LIMIT = Int.MAX_VALUE
+            benchmark { manager.parseGitRepository(Path.of(args[0]), LIMIT) }
 
-            System.out.println("Sum size " + sizeCounterIndex.getSummarySize() + " bytes");
-            final Map<String, Integer> map = new HashMap<>();
-            Stream.of(camelCaseIndex.getClassCounter(), camelCaseIndex.getMethodCounter(),
-                    camelCaseIndex.getFieldCounter())
-                .forEach(it -> it.forEach((trigram, symbol, integer) ->
-                    map.merge(trigram.toPrettyString(), integer, Integer::sum))
-                );
+            println("Sum size " + sizeCounterIndex.summarySize + " bytes")
+            val map: MutableMap<String, Int> = HashMap()
+            Stream.of(
+                camelCaseIndex.classCounter, camelCaseIndex.methodCounter,
+                camelCaseIndex.fieldCounter
+            )
+                .forEach { it: TrigramSymbolCounterLmdb ->
+                    it.forEach { trigram: Trigram, symbol: Symbol, integer: Int ->
+                        map.merge(trigram.toPrettyString(), integer) { a: Int, b: Int -> a + b }
+                    }
+                }
             try {
                 Files.writeString(
-                    Path.of("res.csv"), map.entrySet().stream()
-                        .sorted(Entry.comparingByValue())
-                        .map(it -> "\"" + it.getKey() + "\"," + it.getValue())
+                    Path.of("res.csv"), map.entries.stream()
+                        .sorted(java.util.Map.Entry.comparingByValue())
+                        .map { it: Map.Entry<String, Int> -> "\"" + it.key + "\"," + it.value }
                         .collect(Collectors.joining("\n"))
-                );
-            } catch (final IOException e) {
-                throw new RuntimeException(e);
+                )
+            } catch (e: IOException) {
+                throw RuntimeException(e)
             }
         }
     }
 
-    public static void benchmark(final Runnable runnable) {
-        final long start = System.currentTimeMillis();
-        runnable.run();
-        System.out.println("Benchmarked: " + ((System.currentTimeMillis() - start) / 1000) + " second");
+    fun benchmark(runnable: Runnable) {
+        val start = System.currentTimeMillis()
+        runnable.run()
+        println("Benchmarked: " + ((System.currentTimeMillis() - start) / 1000) + " second")
     }
 
-    public static void benchmarkCheckout(final Revision targetRevision, final IndexesManager manager,
-        final Revisions revisions) {
-        benchmark(() -> {
-            System.out.printf("checkout from %d to %d\n", revisions.getCurrentRevision().revision(),
-                targetRevision.revision());
-            manager.checkout(targetRevision);
-            revisions.setCurrentRevision(targetRevision);
-        });
+    fun benchmarkCheckout(
+        targetRevision: Revision, manager: IndexesManager,
+        revisions: Revisions
+    ) {
+        benchmark {
+            System.out.printf(
+                "checkout from %d to %d\n", revisions.currentRevision.revision,
+                targetRevision.revision
+            )
+            manager.checkout(targetRevision)
+            revisions.currentRevision = targetRevision
+        }
     }
 }

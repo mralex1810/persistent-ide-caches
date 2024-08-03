@@ -1,12 +1,10 @@
-package com.github.sudu.persistentidecaches;
+package com.github.sudu.persistentidecaches
 
-import com.github.sudu.persistentidecaches.changes.Change;
-import java.util.List;
+import com.github.sudu.persistentidecaches.changes.Change
 
-public interface ChangeProcessor {
-
-    void prepare(List<? extends Change> changes);
+interface ChangeProcessor {
+    fun prepare(changes: List<Change?>?)
 
 
-    void processChanges(List<? extends Change> changes);
+    fun processChanges(changes: List<Change?>?)
 }

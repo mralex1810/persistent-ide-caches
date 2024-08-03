@@ -1,31 +1,27 @@
-package com.github.sudu.persistentidecaches.lmdb.maps;
+package com.github.sudu.persistentidecaches.lmdb.maps
 
-import java.nio.ByteBuffer;
-import org.lmdbjava.Env;
+import org.lmdbjava.Env
+import java.nio.ByteBuffer
 
-public class LmdbString2Int extends LmdbAbstractMap {
+class LmdbString2Int(env: Env<ByteBuffer>, dbName: String) : LmdbAbstractMap(env, dbName) {
+    private val valueBuffer: ByteBuffer = ByteBuffer.allocateDirect(Integer.BYTES)
 
-    private final ByteBuffer valueBuffer;
-
-    public LmdbString2Int(final Env<ByteBuffer> env, final String dbName) {
-        super(env, dbName);
-        valueBuffer = ByteBuffer.allocateDirect(Integer.BYTES);
+    protected fun getValue(key: Int): ByteBuffer {
+        return valueBuffer.putInt(key).flip()
     }
 
-    protected ByteBuffer getValue(final int key) {
-        return valueBuffer.putInt(key).flip();
-    }
-
-    public void put(final String key, final int value) {
-        putImpl(allocateString(key),
-            getValue(value));
+    fun put(key: String, value: Int) {
+        putImpl(
+            allocateString(key),
+            getValue(value)
+        )
     }
 
     /**
      * @return value for key or -1
      */
-    public int get(final String key) {
-        final ByteBuffer res = getImpl(allocateString(key));
-        return res == null ? -1 : res.getInt();
+    operator fun get(key: String?): Int {
+        val res = getImpl(allocateString(key!!))
+        return res?.getInt() ?: -1
     }
 }

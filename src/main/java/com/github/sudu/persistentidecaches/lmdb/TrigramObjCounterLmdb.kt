@@ -1,59 +1,60 @@
-package com.github.sudu.persistentidecaches.lmdb;
+package com.github.sudu.persistentidecaches.lmdb
 
-import com.github.sudu.persistentidecaches.records.Trigram;
-import com.github.sudu.persistentidecaches.utils.TriConsumer;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import org.lmdbjava.Env;
-import org.lmdbjava.Txn;
+import com.github.sudu.persistentidecaches.records.Trigram
+import com.github.sudu.persistentidecaches.utils.TriConsumer
+import org.lmdbjava.Env
+import org.lmdbjava.Txn
+import java.nio.ByteBuffer
 
-public abstract class TrigramObjCounterLmdb<U> {
+abstract class TrigramObjCounterLmdb<U>(
+    protected val cache: CountingCacheImpl<U>,
+    env: Env<ByteBuffer>,
+    dbName: String
+) {
+    @JvmField
+    protected val db: LmdbLong2IntCounter = LmdbLong2IntCounter(env, dbName)
 
-    protected final CountingCacheImpl<U> cache;
-    protected final LmdbLong2IntCounter db;
-
-    public TrigramObjCounterLmdb(final CountingCacheImpl<U> cache, final Env<ByteBuffer> env, final String dbName) {
-        this.cache = cache;
-        db = new LmdbLong2IntCounter(env, dbName);
+    fun get(trigram: Trigram, obj: U): Int {
+        return db.countGet(getKey(trigram, obj))
     }
 
-    public int get(final Trigram trigram, final U obj) {
-        return db.get(getKey(trigram, obj));
+    protected fun getKey(trigram: Trigram, num: U): Long {
+        return getKey(trigram.trigram, cache.getNumber(num))
     }
 
-    protected long getKey(final Trigram trigram, final U num) {
-        return getKey(trigram.trigram(), cache.getNumber(num));
+    protected fun getKey(trigram: ByteArray?, num: Int): Long {
+        return (Trigram.toLong(trigram) shl Integer.SIZE) + num
     }
 
-    protected long getKey(final byte[] trigram, final int num) {
-        return (Trigram.toLong(trigram) << Integer.SIZE) + num;
+    fun addIt(txn: Txn<ByteBuffer>, bytes: ByteArray?, num: Int, delta: Int) {
+        db.add(txn, getKey(bytes, num), delta)
     }
 
-    public void addIt(final Txn<ByteBuffer> txn, final byte[] bytes, final int num, final int delta) {
-        db.add(txn, getKey(bytes, num), delta);
+    fun decreaseIt(txn: Txn<ByteBuffer>, bytes: ByteArray?, num: Int, delta: Int) {
+        db.decrease(txn, getKey(bytes, num), delta)
     }
 
-    public void decreaseIt(final Txn<ByteBuffer> txn, final byte[] bytes, final int num, final int delta) {
-        db.decrease(txn, getKey(bytes, num), delta);
+    fun getObjForTrigram(trigram: Trigram): List<U> {
+        val list: MutableList<U> = ArrayList()
+        db.forEachFromTo(
+            { trigramFileLong: Long?, `val`: Int? ->
+                if (`val`!! > 0) {
+                    list.add(cache.getObject(trigramFileLong!!.toInt())!!)
+                }
+            },
+            trigram.toLong() shl Integer.SIZE,
+            (trigram.toLong() + 1) shl Integer.SIZE
+        )
+        return list
     }
 
-    public List<U> getObjForTrigram(final Trigram trigram) {
-        final List<U> list = new ArrayList<>();
-        db.forEachFromTo((trigramFileLong, val) -> {
-                    if (val > 0) {
-                        list.add(cache.getObject(trigramFileLong.intValue()));
-                    }
-                },
-                trigram.toLong() << Integer.SIZE,
-                (trigram.toLong() + 1) << Integer.SIZE);
-        return list;
-    }
-
-    public void forEach(final TriConsumer<Trigram, U, Integer> consumer) {
-        db.forEach((l, i) ->
-                consumer.accept(new Trigram(l >> Integer.SIZE),
-                        cache.getObject(l.intValue()),
-                        i));
+    fun forEach(consumer: TriConsumer<Trigram, U, Int>) {
+        db.forEach { l: Long, i: Int ->
+            consumer.accept(
+                Trigram(l shr Integer.SIZE),
+                cache.getObject(l.toInt()),
+                i
+            )
+        }
     }
 }

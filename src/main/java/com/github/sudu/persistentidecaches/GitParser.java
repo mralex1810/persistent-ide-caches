@@ -131,18 +131,17 @@ public class GitParser {
     void sendChanges(final List<Change> changes, final RevCommit commit) {
         changes.forEach(it -> {
             if (Objects.requireNonNull(it) instanceof final FileChange fileChange) {
-                indexesManager.getFileCache().tryRegisterNewObj(fileChange.place.file());
+                indexesManager.getFileCache().tryRegisterNewObj(fileChange.place.file);
             } else if (it instanceof final FileHolderChange fileHolderChange) {
-                indexesManager.getFileCache().tryRegisterNewObj(fileHolderChange.oldFileName);
-                indexesManager.getFileCache().tryRegisterNewObj(fileHolderChange.newFileName);
+                indexesManager.getFileCache().tryRegisterNewObj(fileHolderChange.getOldFileName());
+                indexesManager.getFileCache().tryRegisterNewObj(fileHolderChange.getNewFileName());
             }
         });
         final int rev = gitCommits2Revisions.get(commit.getName());
         if (rev == -1) {
-            indexesManager.getRevisions().setCurrentRevision(
-                indexesManager.getRevisions().addRevision(
-                    indexesManager.getRevisions().getCurrentRevision()));
-            gitCommits2Revisions.put(commit.getName(), indexesManager.getRevisions().getCurrentRevision().revision());
+            indexesManager.revisions.setCurrentRevision(indexesManager.revisions.addRevision(
+                    indexesManager.revisions.getCurrentRevision()));
+            gitCommits2Revisions.put(commit.getName(), indexesManager.revisions.getCurrentRevision().revision);
             indexesManager.applyChanges(changes);
         } else {
             indexesManager.checkout(new Revision(rev));
@@ -219,7 +218,7 @@ public class GitParser {
     private void parseFirstCommit(final RevCommit first) {
         final int rev = gitCommits2Revisions.get(first.getName());
         if (rev != -1) {
-            indexesManager.getRevisions().setCurrentRevision(new Revision(rev));
+            indexesManager.revisions.setCurrentRevision(new Revision(rev));
             return;
         }
         final List<Change> changes = new ArrayList<>();

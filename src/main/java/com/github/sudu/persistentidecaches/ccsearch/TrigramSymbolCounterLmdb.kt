@@ -10,14 +10,14 @@ import org.lmdbjava.Txn
 import java.nio.ByteBuffer
 
 class TrigramSymbolCounterLmdb(
-    env: Env<ByteBuffer?>?, symbolCache: CountingCacheImpl<Symbol?>?,
+    env: Env<ByteBuffer>, symbolCache: CountingCacheImpl<Symbol>,
     dbNameSuffix: String
-) : TrigramObjCounterLmdb<Symbol?>(symbolCache, env, "trigram_symbol_counter_$dbNameSuffix") {
+) : TrigramObjCounterLmdb<Symbol>(symbolCache, env, "trigram_symbol_counter_$dbNameSuffix") {
     fun add(counter: Map<TrigramSymbol, Int>) {
         db.addAll(counterToList(counter))
     }
 
-    fun add(txn: Txn<ByteBuffer?>?, counter: List<ByteArrIntInt>) {
+    fun add(txn: Txn<ByteBuffer>, counter: List<ByteArrIntInt>) {
         db.addAll(txn, counter.stream()
             .map { it: ByteArrIntInt -> LongInt(getKey(it.trigram, it.num), it.delta) }
             .toList())

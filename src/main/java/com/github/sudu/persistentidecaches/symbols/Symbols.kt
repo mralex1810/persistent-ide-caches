@@ -1,12 +1,18 @@
-package com.github.sudu.persistentidecaches.symbols;
+package com.github.sudu.persistentidecaches.symbols
 
-import java.util.List;
-import java.util.stream.Stream;
+import java.util.stream.Stream
 
-public record Symbols(List<String> classOrInterfaceSymbols, List<String> fieldSymbols, List<String> methodSymbols) {
-
-    public Stream<String> concatedStream() {
-        return Stream.concat(Stream.concat(classOrInterfaceSymbols.stream(), fieldSymbols.stream()),
-                methodSymbols.stream());
+data class Symbols(
+    val classOrInterfaceSymbols: List<String>,
+    val fieldSymbols: List<String>,
+    val methodSymbols: List<String>
+) {
+    fun concatedStream(): Stream<String> {
+        return Stream.concat(
+            Stream.concat(
+                classOrInterfaceSymbols.stream(), fieldSymbols.stream()
+            ),
+            methodSymbols.stream()
+        )
     }
 }

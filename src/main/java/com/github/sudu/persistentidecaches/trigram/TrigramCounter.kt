@@ -1,16 +1,10 @@
-package com.github.sudu.persistentidecaches.trigram;
+package com.github.sudu.persistentidecaches.trigram
 
-import com.github.sudu.persistentidecaches.records.Trigram;
-import com.github.sudu.persistentidecaches.utils.Counter;
-import java.util.Map;
+import com.github.sudu.persistentidecaches.records.Trigram
+import com.github.sudu.persistentidecaches.utils.Counter
 
-public class TrigramCounter extends Counter<Trigram> {
+class TrigramCounter : Counter<Trigram> {
+    constructor() : super()
 
-    public TrigramCounter() {
-        super();
-    }
-
-    public TrigramCounter(final Map<Trigram, Integer> counter) {
-        super(counter);
-    }
+    constructor(counter: Map<Trigram, Int>) : super(counter)
 }

@@ -1,39 +1,34 @@
-package com.github.sudu.persistentidecaches.lmdb.maps;
+package com.github.sudu.persistentidecaches.lmdb.maps
 
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.function.BiConsumer;
-import org.lmdbjava.CursorIterable;
-import org.lmdbjava.DbiFlags;
-import org.lmdbjava.Env;
-import org.lmdbjava.KeyRange;
-import org.lmdbjava.Txn;
+import org.lmdbjava.DbiFlags
+import org.lmdbjava.Env
+import org.lmdbjava.KeyRange
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
+import java.util.function.BiConsumer
 
-public class LmdbInt2String extends LmdbAbstractInt2Smth implements LmdbInt2Obj<String> {
-
-    public LmdbInt2String(final Env<ByteBuffer> env, final String dbName) {
-        super(env, env.openDbi(dbName, DbiFlags.MDB_CREATE, DbiFlags.MDB_INTEGERKEY));
-    }
-
-    public void put(final int key, final String value) {
-        final ByteBuffer valueBytes = ByteBuffer.wrap(value.getBytes());
-        putImpl(getKey(key),
-                allocateString(value));
+class LmdbInt2String(env: Env<ByteBuffer>, dbName: String) :
+    LmdbAbstractInt2Smth(env, env.openDbi(dbName, DbiFlags.MDB_CREATE, DbiFlags.MDB_INTEGERKEY)), LmdbInt2Obj<String> {
+    override fun put(key: Int, value: String) {
+        putImpl(
+            getKey(key),
+            allocateString(value)
+        )
     }
 
     /**
      * @return value for key or null
      */
-    public String get(final int key) {
-        final ByteBuffer res = getImpl(getKey(key));
-        return res == null ? null : String.valueOf(StandardCharsets.UTF_8.decode(res));
+    override fun get(key: Int): String? {
+        val res = getImpl(getKey(key))
+        return if (res == null) null else StandardCharsets.UTF_8.decode(res).toString()
     }
 
-    public void forEach(final BiConsumer<Integer, String> consumer) {
-        try (final Txn<ByteBuffer> txn = env.txnRead()) {
-            try (final CursorIterable<ByteBuffer> ci = db.iterate(txn, KeyRange.all())) {
-                for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
-                    consumer.accept(kv.key().getInt(), String.valueOf(StandardCharsets.UTF_8.decode(kv.val())));
+    override fun forEach(consumer: BiConsumer<Int, String>) {
+        env.txnRead().use { txn ->
+            db.iterate(txn, KeyRange.all()).use { ci ->
+                for (kv in ci) {
+                    consumer.accept(kv.key().getInt(), StandardCharsets.UTF_8.decode(kv.`val`()).toString())
                 }
             }
         }

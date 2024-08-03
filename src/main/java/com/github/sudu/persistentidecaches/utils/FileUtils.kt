@@ -1,25 +1,22 @@
-package com.github.sudu.persistentidecaches.utils;
+package com.github.sudu.persistentidecaches.utils
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.*
 
-public class FileUtils {
-
-    private FileUtils() {
-
+object FileUtils {
+    @JvmStatic
+    fun createParentDirectories(vararg paths: Path) {
+        Arrays.stream(paths).forEach { createParentDirectories() }
     }
 
-    public static void createParentDirectories(final Path... paths) {
-        Arrays.stream(paths).forEach(FileUtils::createParentDirectories);
-    }
-
-    public static void createParentDirectories(final Path path) {
+    @JvmStatic
+    fun createParentDirectories(path: Path) {
         try {
-            Files.createDirectories(path);
-        } catch (final IOException e) {
-            throw new RuntimeException(e);
+            Files.createDirectories(path)
+        } catch (e: IOException) {
+            throw RuntimeException(e)
         }
     }
 }

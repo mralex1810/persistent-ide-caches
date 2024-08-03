@@ -1,28 +1,26 @@
-package com.github.sudu.persistentidecaches.trigram;
+package com.github.sudu.persistentidecaches.trigram
 
-import com.github.sudu.persistentidecaches.ccsearch.CamelCaseIndexUtils;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import com.github.sudu.persistentidecaches.ccsearch.CamelCaseIndexUtils.Companion.getTrigramsSet
+import com.github.sudu.persistentidecaches.records.Trigram
+import java.nio.file.Path
+import java.util.*
+import java.util.function.Consumer
 
-public class TrigramIndexUtils {
-
-    private final TrigramIndex trigramIndex;
-
-    public TrigramIndexUtils(final TrigramIndex trigramIndex) {
-        this.trigramIndex = trigramIndex;
-    }
-
-    public List<Path> filesForString(final String str) {
-        final var trigramSet = CamelCaseIndexUtils.getTrigramsSet(str);
+class TrigramIndexUtils(private val trigramIndex: TrigramIndex) {
+    fun filesForString(str: String?): List<Path> {
+        val trigramSet = getTrigramsSet(str!!)
         if (trigramSet.isEmpty()) {
-            return List.of();
+            return listOf()
         }
-        final Set<Path> fileSet = new TreeSet<>(trigramIndex.getCounter().getObjForTrigram(trigramSet.first()));
-        trigramSet.pollFirst();
-        trigramSet.forEach(it -> fileSet.retainAll(trigramIndex.getCounter().getObjForTrigram(it)));
-        return new ArrayList<>(fileSet);
+        val fileSet: MutableSet<Path> = TreeSet(
+            trigramIndex.counter.getObjForTrigram(trigramSet.first())
+        )
+        trigramSet.pollFirst()
+        trigramSet.forEach(Consumer { it: Trigram ->
+            fileSet.retainAll(
+                trigramIndex.counter.getObjForTrigram(it)
+            )
+        })
+        return ArrayList(fileSet)
     }
 }

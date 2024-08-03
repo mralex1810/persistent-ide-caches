@@ -1,11 +1,13 @@
-package com.github.sudu.persistentidecaches.records;
+package com.github.sudu.persistentidecaches.records
 
-public record Revision(int revision) {
+@JvmRecord
+data class Revision(@JvmField val revision: Int) {
+    override fun hashCode(): Int {
+        return revision
+    }
 
-    public static final Revision NULL = new Revision(-1);
-
-    @Override
-    public int hashCode() {
-        return revision;
+    companion object {
+        @JvmField
+        val NULL: Revision = Revision(-1)
     }
 }

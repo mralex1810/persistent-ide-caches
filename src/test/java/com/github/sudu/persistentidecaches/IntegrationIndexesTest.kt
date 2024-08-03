@@ -1,19 +1,63 @@
-package com.github.sudu.persistentidecaches;
+package com.github.sudu.persistentidecaches
 
-import com.github.sudu.persistentidecaches.changes.AddChange;
-import com.github.sudu.persistentidecaches.records.FilePointer;
-import java.nio.file.Path;
-import java.util.List;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import com.github.sudu.persistentidecaches.changes.AddChange
+import com.github.sudu.persistentidecaches.records.FilePointer
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
+import java.util.function.Consumer
 
-public class IntegrationIndexesTest {
+class IntegrationIndexesTest {
+    @TempDir
+    var tmpDataDir: Path? = null
+    var indexesManager: IndexesManager? = null
 
-    public static final Path EMPTY_PATH = Path.of("");
-    public static final List<Path> FILES = List.of(
+    @BeforeEach
+    fun prepare() {
+        indexesManager = IndexesManager(true, tmpDataDir!!)
+    }
+
+    @Test
+    fun testOneChange() {
+        addFiles(FILES)
+        val trigramIndex = indexesManager!!.addTrigramIndex()
+        val addChanges = FILES.stream().map { it: Path -> createAddChange(it, it.toString()) }
+            .toList()
+        trigramIndex.processChanges(addChanges)
+        FILES.forEach(
+            Consumer { file: Path ->
+                Assertions.assertEquals(
+                    java.util.List.of(file),
+                    trigramIndex.trigramIndexUtils.filesForString(file.toString())
+                )
+            }
+        )
+    }
+
+    private fun addFiles(paths: List<Path>) {
+        paths.forEach(Consumer { it: Path? ->
+            indexesManager!!.fileCache.tryRegisterNewObj(
+                it!!
+            )
+        })
+    }
+
+    private fun createAddChange(path: Path, text: String): AddChange {
+        return AddChange(System.currentTimeMillis(), FilePointer(path, 0), text)
+    }
+
+
+    @AfterEach
+    fun close() {
+        indexesManager!!.close()
+    }
+
+    companion object {
+        val EMPTY_PATH: Path = Path.of("")
+        val FILES: List<Path> = java.util.List.of(
             EMPTY_PATH.resolve("file1.java"),
             EMPTY_PATH.resolve("file2.java"),
             EMPTY_PATH.resolve("file3.java"),
@@ -22,40 +66,6 @@ public class IntegrationIndexesTest {
             EMPTY_PATH.resolve("dir1").resolve("dir3").resolve("file132.java"),
             EMPTY_PATH.resolve("dir1").resolve("file13.java"),
             EMPTY_PATH.resolve("😊😊😊😊😊😊.java")
-    );
-    @TempDir
-    Path tmpDataDir;
-    IndexesManager indexesManager;
-
-    @BeforeEach
-    public void prepare() {
-        indexesManager = new IndexesManager(true, tmpDataDir);
-    }
-
-    @Test
-    public void testOneChange() {
-        addFiles(FILES);
-        final var trigramIndex = indexesManager.addTrigramIndex();
-        final var addChanges = FILES.stream().map(it -> createAddChange(it, it.toString())).toList();
-        trigramIndex.processChanges(addChanges);
-        FILES.forEach(file ->
-                Assertions.assertEquals(List.of(file),
-                        trigramIndex.getTrigramIndexUtils().filesForString(file.toString()))
-        );
-    }
-
-    @SuppressWarnings("SameParameterValue")
-    private void addFiles(final List<Path> paths) {
-        paths.forEach(it -> indexesManager.getFileCache().tryRegisterNewObj(it));
-    }
-
-    private AddChange createAddChange(final Path path, final String text) {
-        return new AddChange(System.currentTimeMillis(), new FilePointer(path, 0), text);
-    }
-
-
-    @AfterEach
-    public void close() {
-        indexesManager.close();
+        )
     }
 }

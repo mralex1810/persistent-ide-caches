@@ -1,7 +1,5 @@
-package com.github.sudu.persistentidecaches.records;
+package com.github.sudu.persistentidecaches.records
 
-import java.nio.file.Path;
+import java.nio.file.Path
 
-public record TrigramFileInteger(Trigram trigram, Path file, int value) {
-
-}
+data class TrigramFileInteger(val trigram: Trigram, val file: Path, val value: Int)

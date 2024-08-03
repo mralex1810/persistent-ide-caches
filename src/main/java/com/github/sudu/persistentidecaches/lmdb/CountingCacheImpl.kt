@@ -1,62 +1,45 @@
-package com.github.sudu.persistentidecaches.lmdb;
+package com.github.sudu.persistentidecaches.lmdb
 
-import com.github.sudu.persistentidecaches.CountingCache;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbInt2Obj;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbString2Int;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.BiConsumer;
+import com.github.sudu.persistentidecaches.CountingCache
+import com.github.sudu.persistentidecaches.lmdb.maps.LmdbInt2Obj
+import com.github.sudu.persistentidecaches.lmdb.maps.LmdbString2Int
+import java.util.function.BiConsumer
 
-public class CountingCacheImpl<V> implements CountingCache<V> {
+class CountingCacheImpl<V>(
+    private val objectsStringName: String,
+    private val objInProject: LmdbInt2Obj<V>,
+    private val variables: LmdbString2Int
+) : CountingCache<V> {
+    private val reverseObjInProject: MutableMap<V, Int> = HashMap()
 
-    private final String objectsStringName;
-    private final LmdbInt2Obj<V> objInProject;
-    private final Map<V, Integer> reverseObjInProject = new HashMap<>();
-    private final LmdbString2Int variables;
-
-    public CountingCacheImpl(final String objectsStringName,
-            final LmdbInt2Obj<V> objectsInProject,
-            final LmdbString2Int variables) {
-        this.objectsStringName = objectsStringName;
-        this.objInProject = objectsInProject;
-        this.variables = variables;
+    override fun getNumber(obj: V): Int {
+        return reverseObjInProject[obj]!!
     }
 
-    @Override
-    public int getNumber(final V obj) {
-        return reverseObjInProject.get(obj);
+    override fun getObject(objNum: Int): V? {
+        return objInProject[objNum]
     }
 
-    @Override
-    public V getObject(final int objNum) {
-        return objInProject.get(objNum);
-    }
-
-    @Override
-    public void tryRegisterNewObj(final V obj) {
-        if (reverseObjInProject.get(obj) == null) {
-            final var fileNum = variables.get(objectsStringName);
-            objInProject.put(fileNum, obj);
-            reverseObjInProject.put(obj, fileNum);
-            variables.put(objectsStringName, fileNum + 1);
+    override fun tryRegisterNewObj(obj: V) {
+        if (reverseObjInProject[obj] == null) {
+            val fileNum = variables[objectsStringName]
+            objInProject.put(fileNum, obj)
+            reverseObjInProject[obj] = fileNum
+            variables.put(objectsStringName, fileNum + 1)
         }
     }
 
-    @Override
-    public void restoreObjectsFromDB() {
-        objInProject.forEach((integer, file) -> reverseObjInProject.put(file, integer));
+    override fun restoreObjectsFromDB() {
+        objInProject.forEach { integer: Int, file: V -> reverseObjInProject[file] = integer }
     }
 
-    @Override
-    public void init() {
-        if (variables.get(objectsStringName) == -1) {
-            variables.put(objectsStringName, 0);
+    override fun init() {
+        if (variables[objectsStringName] == -1) {
+            variables.put(objectsStringName, 0)
         }
     }
 
-    @Override
-    public void forEach(final BiConsumer<V, Number> consumer) {
-        reverseObjInProject.forEach(consumer);
+    override fun forEach(consumer: BiConsumer<V, Number>) {
+        reverseObjInProject.forEach(consumer)
     }
-
 }

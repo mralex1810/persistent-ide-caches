@@ -1,46 +1,40 @@
-package com.github.sudu.persistentidecaches;
+package com.github.sudu.persistentidecaches
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.sudu.persistentidecaches.ccsearch.CamelCaseIndex;
-import com.github.sudu.persistentidecaches.ccsearch.CamelCaseIndexUtils;
-import com.github.sudu.persistentidecaches.ccsearch.Matcher;
-import com.github.sudu.persistentidecaches.changes.AddChange;
-import com.github.sudu.persistentidecaches.changes.Change;
-import com.github.sudu.persistentidecaches.changes.DeleteChange;
-import com.github.sudu.persistentidecaches.changes.ModifyChange;
-import com.github.sudu.persistentidecaches.changes.RenameChange;
-import com.github.sudu.persistentidecaches.records.FilePointer;
-import com.github.sudu.persistentidecaches.trigram.TrigramIndex;
-import com.github.sudu.persistentidecaches.trigram.TrigramIndexUtils;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.github.sudu.persistentidecaches.ccsearch.CamelCaseIndex
+import com.github.sudu.persistentidecaches.ccsearch.CamelCaseIndexUtils
+import com.github.sudu.persistentidecaches.ccsearch.Matcher.letters
+import com.github.sudu.persistentidecaches.changes.*
+import com.github.sudu.persistentidecaches.records.FilePointer
+import com.github.sudu.persistentidecaches.symbols.Symbol
+import com.github.sudu.persistentidecaches.trigram.TrigramIndex
+import com.github.sudu.persistentidecaches.trigram.TrigramIndexUtils
+import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStreamReader
+import java.nio.file.Path
+import java.util.*
+import java.util.stream.Collectors
+import java.util.stream.Stream
+import kotlin.math.min
 
-public class VsCodeClient {
+object VsCodeClient {
+    const val SEARCH: String = "search"
+    const val CHANGES: String = "changes"
+    const val BUSY_WAITING_MILLIS: Int = 500
+    const val CHECKOUT: String = "checkout"
+    const val CCSEARCH: String = "ccsearch"
+    const val BUCKET_SIZE: Int = 10
+    const val NEXT: String = "next"
+    const val PREV: String = "prev"
+    private val BUFFER = CharArray(16384)
+    private var returned: List<String>? = null
+    private var currentPos = 0
+    private var time: Long = 0
 
-    public static final String SEARCH = "search";
-    public static final String CHANGES = "changes";
-    public static final int BUSY_WAITING_MILLIS = 500;
-    public static final String CHECKOUT = "checkout";
-    public static final String CCSEARCH = "ccsearch";
-    public static final int BUCKET_SIZE = 10;
-    public static final String NEXT = "next";
-    public static final String PREV = "prev";
-    private static final char[] BUFFER = new char[16384];
-    private static List<String> returned;
-    private static int currentPos;
-    private static long time;
-
-    private static void printUsage() {
-        System.err.println("""
+    private fun printUsage() {
+        System.err.println(
+            """
             Usage:
             java VsCodeClient path_to_repository reset_db parseAll/parseHead trigram_index camel_case_index
             
@@ -49,160 +43,185 @@ public class VsCodeClient {
             parseAll/parseHead -- "parseAll" or "parseHead" to parse all refs or only HEAD
             trigram_index  -- true/false to enable trigram index
             camel_case_index  -- true/false to enable camel case index
-            """
-        );
+            
+            """.trimIndent()
+        )
     }
 
-    @SuppressWarnings({"BusyWait", "InfiniteLoopStatement"})
-    public static void main(final String[] args) throws IOException, InterruptedException {
-        if (args.length != 5) {
-            System.err.println("Wrong usage");
-            printUsage();
+    @Throws(IOException::class, InterruptedException::class)
+    @JvmStatic
+    fun main(args: Array<String>) {
+        if (args.size != 5) {
+            System.err.println("Wrong usage")
+            printUsage()
         }
-        try (final IndexesManager manager = new IndexesManager(args[1].equals("true"))) {
-            TrigramIndex trigramHistoryIndex = null;
-            final TrigramIndexUtils trigramIndexUtils;
-            CamelCaseIndex camelCaseSearch = null;
-            final CamelCaseIndexUtils camelCaseSearchUtils;
-            if (args[3].equals("true")) {
-                trigramHistoryIndex = manager.addTrigramIndex();
-                trigramIndexUtils = trigramHistoryIndex.getTrigramIndexUtils();
+        IndexesManager(args[1] == "true").use { manager ->
+            var trigramHistoryIndex: TrigramIndex? = null
+            val trigramIndexUtils: TrigramIndexUtils?
+            var camelCaseSearch: CamelCaseIndex? = null
+            val camelCaseSearchUtils: CamelCaseIndexUtils?
+            if (args[3] == "true") {
+                trigramHistoryIndex = manager.addTrigramIndex()
+                trigramIndexUtils = trigramHistoryIndex.trigramIndexUtils
             } else {
-                trigramIndexUtils = null;
+                trigramIndexUtils = null
             }
-            if (args[4].equals("true")) {
-                camelCaseSearch = manager.addCamelCaseIndex();
-                camelCaseSearchUtils = camelCaseSearch.getUtils();
+            if (args[4] == "true") {
+                camelCaseSearch = manager.addCamelCaseIndex()
+                camelCaseSearchUtils = camelCaseSearch.utils
             } else {
-                camelCaseSearchUtils = null;
+                camelCaseSearchUtils = null
             }
-            final var repPath = Path.of(args[0]);
-            manager.parseGitRepository(repPath, args[3].equals("parseHead"));
+            val repPath = Path.of(args[0])
+            manager.parseGitRepository(repPath, args[3] == "parseHead")
 
-            final ObjectMapper objectMapper = new ObjectMapper();
-            final BufferedReader scanner = new BufferedReader(new InputStreamReader(System.in));
+            val objectMapper = ObjectMapper()
+            val scanner = BufferedReader(InputStreamReader(System.`in`))
             while (true) {
-                String line = scanner.readLine();
-                Thread.sleep(BUSY_WAITING_MILLIS);
-                switch (line) {
-                    case CHANGES -> {
-                        final var read = scanner.read(BUFFER);
-                        line = new String(BUFFER, 0, read);
-                        final Changes changes = objectMapper.readValue(line, Changes.class);
-                        final List<Change> processedChangesList = new ArrayList<>();
-                        for (final ModifyChangeFromJSON modifyChangeFromJSON : changes.modifyChanges) {
-                            final Path path = repPath.relativize(Path.of(modifyChangeFromJSON.uri));
-                            final ModifyChange modifyChange = new ModifyChange(changes.timestamp,
-                                () -> modifyChangeFromJSON.oldText,
-                                () -> modifyChangeFromJSON.newText,
+                var line = scanner.readLine()
+                Thread.sleep(BUSY_WAITING_MILLIS.toLong())
+                when (line) {
+                    CHANGES -> {
+                        val read = scanner.read(BUFFER)
+                        line = String(BUFFER, 0, read)
+                        val changes = objectMapper.readValue(line, Changes::class.java)
+                        val processedChangesList: MutableList<Change?> = ArrayList()
+                        for ((uri, oldText, newText) in changes.modifyChanges) {
+                            val path = repPath.relativize(Path.of(uri))
+                            val modifyChange = ModifyChange(
+                                changes.timestamp,
+                                { oldText },
+                                { newText },
                                 path,
-                                path);
-                            processedChangesList.add(modifyChange);
+                                path
+                            )
+                            processedChangesList.add(modifyChange)
                         }
-                        for (final CreateFileChangeFromJSON createFileChangeFromJSON : changes.addChanges) {
-                            final AddChange addChange = new AddChange(changes.timestamp,
-                                new FilePointer(repPath.relativize(Path.of(createFileChangeFromJSON.uri)), 0),
-                                createFileChangeFromJSON.text);
-                            processedChangesList.add(addChange);
+                        for ((uri, text) in changes.addChanges) {
+                            val addChange = AddChange(
+                                changes.timestamp,
+                                FilePointer(repPath.relativize(Path.of(uri)), 0),
+                                text
+                            )
+                            processedChangesList.add(addChange)
                         }
-                        for (final DeleteFileChangeFromJSON deleteFileChangeFromJSON : changes.deleteChanges) {
-                            final DeleteChange deleteChange = new DeleteChange(changes.timestamp,
-                                new FilePointer(repPath.relativize(Path.of(deleteFileChangeFromJSON.uri)), 0),
-                                deleteFileChangeFromJSON.text);
-                            processedChangesList.add(deleteChange);
+                        for ((uri, text) in changes.deleteChanges) {
+                            val deleteChange = DeleteChange(
+                                changes.timestamp,
+                                FilePointer(repPath.relativize(Path.of(uri)), 0),
+                                text
+                            )
+                            processedChangesList.add(deleteChange)
                         }
-                        for (final RenameFileChangeFromJSON renameFileChangeFromJSON : changes.renameChanges) {
-                            final RenameChange renameChange = new RenameChange(changes.timestamp,
-                                () -> renameFileChangeFromJSON.text,
-                                () -> renameFileChangeFromJSON.text,
-                                repPath.relativize(Path.of(renameFileChangeFromJSON.oldUri)),
-                                repPath.relativize(Path.of(renameFileChangeFromJSON.newUri)));
-                            processedChangesList.add(renameChange);
+                        for ((oldUri, newUri, text) in changes.renameChanges) {
+                            val renameChange = RenameChange(
+                                changes.timestamp,
+                                { text },
+                                { text },
+                                repPath.relativize(Path.of(oldUri)),
+                                repPath.relativize(Path.of(newUri))
+                            )
+                            processedChangesList.add(renameChange)
                         }
-                        manager.nextRevision();
-                        manager.applyChanges(processedChangesList);
+                        manager.nextRevision()
+                        manager.applyChanges(processedChangesList)
                     }
-                    case SEARCH -> {
-                        final var read = scanner.read(BUFFER);
-                        final var l = new String(BUFFER, 0, read);
-                        currentPos = 0;
-                        checkTime(() ->
-                            returned = trigramIndexUtils.filesForString(l)
+
+                    SEARCH -> {
+                        val read = scanner.read(BUFFER)
+                        val l = String(BUFFER, 0, read)
+                        currentPos = 0
+                        checkTime {
+                            returned = trigramIndexUtils!!.filesForString(l)
                                 .stream()
-                                .map(Path::toString)
-                                .toList());
-                        sendCurrentBucket();
+                                .map { obj: Path -> obj.toString() }
+                                .toList()
+                        }
+                        sendCurrentBucket()
                     }
-                    case CHECKOUT -> {
-                        final var read = scanner.read(BUFFER);
-                        final var l = new String(BUFFER, 0, read);
-                        checkTime(() -> manager.checkoutToGitRevision(l));
-                        System.out.println(time);
+
+                    CHECKOUT -> {
+                        val read = scanner.read(BUFFER)
+                        val l = String(BUFFER, 0, read)
+                        checkTime { manager.checkoutToGitRevision(l) }
+                        println(time)
                     }
-                    case CCSEARCH -> {
-                        final var read = scanner.read(BUFFER);
-                        final var req = new String(BUFFER, 0, read);
-                        checkTime(() -> returned =
-                            camelCaseSearchUtils.getSymbolsFromAny(req).stream()
-                                .map(it -> Stream.of(Stream.of(it.name()),
-                                        Stream.of(manager.getFileCache().getObject(it.pathNum())),
-                                        Arrays.stream(Matcher.letters(req, it.name())).mapToObj(Integer::toString))
-                                    .flatMap(Function.identity())
-                                    .map(Objects::toString)
-                                    .collect(Collectors.joining(" ")))
-                                .toList());
-                        currentPos = 0;
-                        sendCurrentBucket();
+
+                    CCSEARCH -> {
+                        val read = scanner.read(BUFFER)
+                        val req = String(BUFFER, 0, read)
+                        checkTime {
+                            returned =
+                                camelCaseSearchUtils!!.getSymbolsFromAny(req).stream()
+                                    .map { it: Symbol ->
+                                        Stream.of(
+                                            Stream.of(it.name),
+                                            Stream.of(manager.fileCache.getObject(it.pathNum)),
+                                            Arrays.stream(letters(req, it.name)).mapToObj { it.toString() }
+                                        )
+                                            .flatMap { it }
+                                            .map { Objects.toString(it) }
+                                            .collect(Collectors.joining(" "))
+                                    }
+                                    .toList()
+                        }
+                        currentPos = 0
+                        sendCurrentBucket()
                     }
-                    case NEXT -> {
-                        currentPos += BUCKET_SIZE;
-                        System.err.println("Next " + currentPos + " of " + returned.size());
-                        sendCurrentBucket();
+
+                    NEXT -> {
+                        currentPos += BUCKET_SIZE
+                        System.err.println("Next " + currentPos + " of " + returned!!.size)
+                        sendCurrentBucket()
                     }
-                    case PREV -> {
-                        currentPos -= BUCKET_SIZE;
-                        System.err.println("Prev " + currentPos + " of " + returned.size());
-                        sendCurrentBucket();
+
+                    PREV -> {
+                        currentPos -= BUCKET_SIZE
+                        System.err.println("Prev " + currentPos + " of " + returned!!.size)
+                        sendCurrentBucket()
                     }
                 }
             }
         }
     }
 
-    private static void checkTime(final Runnable runnable) {
-        final long start = System.nanoTime();
-        runnable.run();
-        time = (System.nanoTime() - start) / 1_000_000;
+    private fun checkTime(runnable: Runnable) {
+        val start = System.nanoTime()
+        runnable.run()
+        time = (System.nanoTime() - start) / 1000000
     }
 
-    private static void sendCurrentBucket() {
-        System.out.println(
-            Stream.concat(Stream.of(returned.size(), time).map(Object::toString),
-                    returned.subList(currentPos, Math.min(currentPos + BUCKET_SIZE, returned.size())).stream())
-                .collect(Collectors.joining("\n")));
+    private fun sendCurrentBucket() {
+        println(
+            Stream.concat(
+                Stream.of(returned!!.size, time).map { obj: Number -> obj.toString() },
+                returned!!.subList(
+                    currentPos, min((currentPos + BUCKET_SIZE).toDouble(), returned!!.size.toDouble())
+                        .toInt()
+                ).stream()
+            )
+                .collect(Collectors.joining("\n"))
+        )
     }
 
-    private record ModifyChangeFromJSON(String uri, String oldText, String newText) {
+    @JvmRecord
+    private data class ModifyChangeFromJSON(val uri: String, val oldText: String, val newText: String)
 
-    }
+    @JvmRecord
+    private data class CreateFileChangeFromJSON(val uri: String, val text: String)
 
-    private record CreateFileChangeFromJSON(String uri, String text) {
+    @JvmRecord
+    private data class DeleteFileChangeFromJSON(val uri: String, val text: String)
 
-    }
+    @JvmRecord
+    private data class RenameFileChangeFromJSON(val oldUri: String, val newUri: String, val text: String)
 
-    private record DeleteFileChangeFromJSON(String uri, String text) {
-
-    }
-
-    private record RenameFileChangeFromJSON(String oldUri, String newUri, String text) {
-
-    }
-
-    private record Changes(List<ModifyChangeFromJSON> modifyChanges,
-                           List<CreateFileChangeFromJSON> addChanges,
-                           List<DeleteFileChangeFromJSON> deleteChanges,
-                           List<RenameFileChangeFromJSON> renameChanges,
-                           long timestamp) {
-
-    }
+    @JvmRecord
+    private data class Changes(
+        val modifyChanges: List<ModifyChangeFromJSON>,
+        val addChanges: List<CreateFileChangeFromJSON>,
+        val deleteChanges: List<DeleteFileChangeFromJSON>,
+        val renameChanges: List<RenameFileChangeFromJSON>,
+        val timestamp: Long
+    )
 }

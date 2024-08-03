@@ -1,48 +1,38 @@
-package com.github.sudu.persistentidecaches.utils.indexes;
+package com.github.sudu.persistentidecaches.utils.indexes
 
-import com.github.sudu.persistentidecaches.Index;
-import com.github.sudu.persistentidecaches.changes.AddChange;
-import com.github.sudu.persistentidecaches.changes.Change;
-import com.github.sudu.persistentidecaches.changes.CopyChange;
-import com.github.sudu.persistentidecaches.changes.ModifyChange;
-import com.github.sudu.persistentidecaches.records.Revision;
-import java.util.List;
+import com.github.sudu.persistentidecaches.Index
+import com.github.sudu.persistentidecaches.changes.AddChange
+import com.github.sudu.persistentidecaches.changes.Change
+import com.github.sudu.persistentidecaches.changes.CopyChange
+import com.github.sudu.persistentidecaches.changes.ModifyChange
+import com.github.sudu.persistentidecaches.records.Revision
 
-public class SizeCounterIndex implements Index<String, String> {
+class SizeCounterIndex : Index<String, String> {
+    var summarySize: Long = 0
+        private set
 
-    private long summarySize = 0;
-
-    public long getSummarySize() {
-        return summarySize;
+    override fun prepare(changes: List<Change>) {
+        processChanges(changes)
     }
 
-    @Override
-    public void prepare(final List<? extends Change> changes) {
-        processChanges(changes);
+    override fun processChanges(changes: List<Change>) {
+        changes.forEach { change: Change -> this.processChange(change) }
     }
 
-    @Override
-    public void processChanges(final List<? extends Change> changes) {
-        changes.forEach(this::processChange);
-    }
-
-    private void processChange(final Change change) {
-        if (change instanceof final AddChange addChange) {
-            summarySize += addChange.addedString.getBytes().length;
-        } else if (change instanceof final ModifyChange modifyChange) {
-            summarySize += modifyChange.getNewFileContent().getBytes().length;
-        } else if (change instanceof final CopyChange copyChange) {
-            summarySize += copyChange.getNewFileContent().getBytes().length;
+    private fun processChange(change: Change) {
+        if (change is AddChange) {
+            summarySize += change.addedString.toByteArray().size.toLong()
+        } else if (change is ModifyChange) {
+            summarySize += change.newFileContent.toByteArray().size.toLong()
+        } else if (change is CopyChange) {
+            summarySize += change.newFileContent.toByteArray().size.toLong()
         }
     }
 
-    @Override
-    public String getValue(final String s, final Revision revision) {
-        return null;
+    override fun getValue(key: String, revision: Revision): String? {
+        return null
     }
 
-    @Override
-    public void checkout(final Revision revision) {
-
+    override fun checkout(revision: Revision) {
     }
 }

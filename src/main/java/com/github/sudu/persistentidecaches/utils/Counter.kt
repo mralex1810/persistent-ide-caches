@@ -1,13 +1,10 @@
-package com.github.sudu.persistentidecaches.utils;
+package com.github.sudu.persistentidecaches.utils
+
+import java.util.function.BiConsumer
 
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.BiConsumer;
-
-public class Counter<Key> {
-
-    protected final Map<Key, Integer> counter;
+open class Counter<Key> {
+    protected val counter: MutableMap<Key, Int>
 
     // LIMIT=300
     // fast-util.Avl 210 64 1 9 9 64
@@ -15,68 +12,69 @@ public class Counter<Key> {
     // fast-util.RB 202 68 1 10 9 67
     // fast-util.LinkedOpenHash 96 34 0 4 4 33
     // HashMap 72 28 0 3 4 27
-
-    public Counter() {
-        counter = new HashMap<>();
+    constructor() {
+        counter = HashMap()
     }
 
-    public Counter(final Map<Key, Integer> counter) {
-        this.counter = new HashMap<>(counter);
+    constructor(counter: Map<Key, Int>?) {
+        this.counter = HashMap(counter)
     }
 
-    public static <Key> Counter<Key> emptyCounter() {
-        return new Counter<>();
+    fun decrease(key: Key) {
+        add(key, -1)
     }
 
-    public void add(final Key key) {
-        add(key, 1);
+    fun add(key: Key, value: Int = 1) {
+        counter.merge(key, value) { a: Int?, b: Int? ->
+            Integer.sum(
+                a!!, b!!
+            )
+        }
     }
 
-    public void decrease(final Key key) {
-        add(key, -1);
+    fun decrease(key: Key, value: Int) {
+        add(key, -value)
     }
 
-    public void add(final Key key, final int value) {
-        counter.merge(key, value, Integer::sum);
+    fun add(other: Counter<Key>) {
+        other.counter.forEach { (key: Key, value: Int) -> this.add(key, value) }
     }
 
-    public void decrease(final Key key, final int value) {
-        add(key, -value);
+    fun decrease(other: Counter<Key>) {
+        other.counter.forEach { (key: Key, value: Int) -> this.decrease(key, value) }
     }
 
-    public void add(final Counter<Key> other) {
-        other.counter.forEach(this::add);
+    fun plus(other: Counter<Key>?): Counter<Key> {
+        val copy = copy()
+        copy.add(other!!)
+        return copy
     }
 
-    public void decrease(final Counter<Key> other) {
-        other.counter.forEach(this::decrease);
+    fun minus(other: Counter<Key>?): Counter<Key> {
+        val copy = copy()
+        copy.decrease(other!!)
+        return copy
     }
 
-    public Counter<Key> plus(final Counter<Key> other) {
-        final var copy = copy();
-        copy.add(other);
-        return copy;
+    fun get(key: Key): Int {
+        return counter.getOrDefault(key, 0)
     }
 
-    public Counter<Key> minus(final Counter<Key> other) {
-        final var copy = copy();
-        copy.decrease(other);
-        return copy;
+    val asMap: Map<Key, Int>
+        get() = counter
+
+    fun copy(): Counter<Key> {
+        return Counter(counter)
     }
 
-    public int get(final Key key) {
-        return counter.getOrDefault(key, 0);
+    fun forEach(function: BiConsumer<Key, Int>?) {
+        counter.forEach(function!!)
     }
 
-    public Map<Key, Integer> getAsMap() {
-        return counter;
-    }
-
-    public Counter<Key> copy() {
-        return new Counter<>(counter);
-    }
-
-    public void forEach(final BiConsumer<Key, Integer> function) {
-        counter.forEach(function);
+    companion object {
+        @JvmStatic
+        fun <Key> emptyCounter(): Counter<Key> {
+            return Counter()
+        }
     }
 }

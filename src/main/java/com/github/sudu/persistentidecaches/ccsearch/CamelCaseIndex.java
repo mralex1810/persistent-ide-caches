@@ -139,10 +139,10 @@ public class CamelCaseIndex implements Index<String, String> {
 
     private void processDeleteChange(final DeleteChange change) {
         final var symbolsFile = getSymbolsFromString(change.deletedString);
-        final var fileNum = pathCache.getNumber(change.place.file());
-        classCounter.decrease(collectCounter(symbolsFile.classOrInterfaceSymbols(), fileNum));
-        fieldCounter.decrease(collectCounter(symbolsFile.fieldSymbols(), fileNum));
-        methodCounter.decrease(collectCounter(symbolsFile.methodSymbols(), fileNum));
+        final var fileNum = pathCache.getNumber(change.place.file);
+        classCounter.decrease(collectCounter(symbolsFile.classOrInterfaceSymbols, fileNum));
+        fieldCounter.decrease(collectCounter(symbolsFile.fieldSymbols, fileNum));
+        methodCounter.decrease(collectCounter(symbolsFile.methodSymbols, fileNum));
 //        print(change.getPlace());
     }
 
@@ -153,12 +153,12 @@ public class CamelCaseIndex implements Index<String, String> {
 
     private void processAddChange(final AddChange change) {
         final var symbolsFile = getSymbolsFromString(change.addedString);
-        final var fileNum = pathCache.getNumber(change.place.file());
+        final var fileNum = pathCache.getNumber(change.place.file);
         symbolsFile.concatedStream().forEach(it -> symbolCache.tryRegisterNewObj(
-                new Symbol(it, pathCache.getNumber(change.place.file()))));
-        classCounter.add(collectCounter(symbolsFile.classOrInterfaceSymbols(), fileNum));
-        fieldCounter.add(collectCounter(symbolsFile.fieldSymbols(), fileNum));
-        methodCounter.add(collectCounter(symbolsFile.methodSymbols(), fileNum));
+                new Symbol(it, pathCache.getNumber(change.place.file))));
+        classCounter.add(collectCounter(symbolsFile.classOrInterfaceSymbols, fileNum));
+        fieldCounter.add(collectCounter(symbolsFile.fieldSymbols, fileNum));
+        methodCounter.add(collectCounter(symbolsFile.methodSymbols, fileNum));
 //        print(change.getPlace());
     }
 

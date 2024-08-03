@@ -1,38 +1,34 @@
-package com.github.sudu.persistentidecaches.lmdb.maps;
+package com.github.sudu.persistentidecaches.lmdb.maps
 
-import java.nio.ByteBuffer;
-import org.lmdbjava.DbiFlags;
-import org.lmdbjava.Env;
+import org.lmdbjava.DbiFlags
+import org.lmdbjava.Env
+import java.nio.ByteBuffer
 
-public class LmdbLong2Int extends LmdbAbstractMap {
+open class LmdbLong2Int(env: Env<ByteBuffer>, dbName: String) :
+    LmdbAbstractMap(env, env.openDbi(dbName, DbiFlags.MDB_CREATE)) {
+    protected val keyBuffer: ByteBuffer = ByteBuffer.allocateDirect(java.lang.Long.BYTES)
+    protected val valueBuffer: ByteBuffer = ByteBuffer.allocateDirect(Integer.BYTES)
 
-    protected final ByteBuffer keyBuffer;
-    protected final ByteBuffer valueBuffer;
-
-    public LmdbLong2Int(final Env<ByteBuffer> env, final String dbName) {
-        super(env, env.openDbi(dbName, DbiFlags.MDB_CREATE));
-        keyBuffer = ByteBuffer.allocateDirect(Long.BYTES);
-        valueBuffer = ByteBuffer.allocateDirect(Integer.BYTES);
+    protected fun getKey(key: Long): ByteBuffer {
+        return keyBuffer.putLong(key).flip()
     }
 
-    protected ByteBuffer getKey(final long key) {
-        return keyBuffer.putLong(key).flip();
+    protected fun getValue(key: Int): ByteBuffer {
+        return valueBuffer.putInt(key).flip()
     }
 
-    protected ByteBuffer getValue(final int key) {
-        return valueBuffer.putInt(key).flip();
-    }
-
-    public void put(final long key, final int value) {
-        putImpl(getKey(key),
-            getValue(value));
+    fun put(key: Long, value: Int) {
+        putImpl(
+            getKey(key),
+            getValue(value)
+        )
     }
 
     /**
      * @return value for key or -1
      */
-    public int get(final long key) {
-        final ByteBuffer res = getImpl(getKey(key));
-        return res == null ? -1 : res.getInt();
+    operator fun get(key: Long): Int {
+        val res = getImpl(getKey(key))
+        return res?.getInt() ?: -1
     }
 }

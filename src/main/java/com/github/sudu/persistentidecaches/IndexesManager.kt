@@ -1,251 +1,225 @@
-package com.github.sudu.persistentidecaches;
+package com.github.sudu.persistentidecaches
+
+import com.github.sudu.persistentidecaches.ccsearch.CamelCaseIndex
+import com.github.sudu.persistentidecaches.changes.Change
+import com.github.sudu.persistentidecaches.lmdb.CountingCacheImpl
+import com.github.sudu.persistentidecaches.lmdb.maps.*
+import com.github.sudu.persistentidecaches.records.Revision
+import com.github.sudu.persistentidecaches.symbols.Symbol
+import com.github.sudu.persistentidecaches.trigram.TrigramIndex
+import com.github.sudu.persistentidecaches.utils.FileUtils.createParentDirectories
+import com.github.sudu.persistentidecaches.utils.indexes.EchoIndex
+import com.github.sudu.persistentidecaches.utils.indexes.SizeCounterIndex
+import org.eclipse.jgit.api.Git
+import org.lmdbjava.Env
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.attribute.BasicFileAttributes
+import java.util.function.Consumer
 
 
-import com.github.sudu.persistentidecaches.ccsearch.CamelCaseIndex;
-import com.github.sudu.persistentidecaches.changes.Change;
-import com.github.sudu.persistentidecaches.lmdb.CountingCacheImpl;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbInt2Int;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbInt2Path;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbInt2Symbol;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbSha12Int;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbString2Int;
-import com.github.sudu.persistentidecaches.records.Revision;
-import com.github.sudu.persistentidecaches.symbols.Symbol;
-import com.github.sudu.persistentidecaches.trigram.TrigramIndex;
-import com.github.sudu.persistentidecaches.utils.FileUtils;
-import com.github.sudu.persistentidecaches.utils.indexes.EchoIndex;
-import com.github.sudu.persistentidecaches.utils.indexes.SizeCounterIndex;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import org.eclipse.jgit.api.Git;
-import org.lmdbjava.Env;
+class IndexesManager @JvmOverloads constructor(resetDBs: Boolean = false, dataPath: Path = Path.of("")) :
+    AutoCloseable {
+    private val lmdbGlobalPath: Path = dataPath.resolve(".lmdb")
+    private val lmdbTrigramPath: Path = dataPath.resolve(".lmdb.trigrams")
+    private val lmdbCamelCaseSearchPath: Path = dataPath.resolve(".lmdb.camelCaseSearch")
+    private val indexes: MutableMap<Class<*>, Index<*, *>> =
+        HashMap()
 
-public class IndexesManager implements AutoCloseable {
-
-    private static final SimpleFileVisitor<Path> DELETE = new SimpleFileVisitor<>() {
-        @Override
-        public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) throws IOException {
-            Files.delete(file);
-            return FileVisitResult.CONTINUE;
-        }
-
-        @Override
-        public FileVisitResult postVisitDirectory(final Path dir, final IOException exc) throws IOException {
-            Files.delete(dir);
-            return FileVisitResult.CONTINUE;
-        }
-    };
-
-    private final Path lmdbGlobalPath;
-    private final Path lmdbTrigramPath;
-    private final Path lmdbCamelCaseSearchPath;
-    private final Map<Class<?>, Index<?, ?>> indexes;
-    private final Revisions revisions;
-    private final CountingCacheImpl<Path> pathCache;
-    private final LmdbString2Int variables;
-    private final Env<ByteBuffer> globalEnv;
-    private final List<Env<ByteBuffer>> envs;
-    private final CountingCacheImpl<Symbol> symbolCache;
-    private LmdbSha12Int lmdbSha12Int;
+    @JvmField
+    val revisions: Revisions
+    private val pathCache: CountingCacheImpl<Path>
+    val variables: LmdbString2Int
+    private val globalEnv: Env<ByteBuffer>
+    private val envs: MutableList<Env<ByteBuffer>> = ArrayList()
+    private val symbolCache: CountingCacheImpl<Symbol>
+    private var lmdbSha12Int: LmdbSha12Int? = null
 
 
-    public IndexesManager() {
-        this(false);
-    }
-
-    public IndexesManager(final boolean resetDBs) {
-        this(resetDBs, Path.of(""));
-    }
-
-    public IndexesManager(final boolean resetDBs, final Path dataPath) {
-        indexes = new HashMap<>();
-        envs = new ArrayList<>();
-        lmdbGlobalPath = dataPath.resolve(".lmdb");
-        lmdbTrigramPath = dataPath.resolve(".lmdb.trigrams");
-        lmdbCamelCaseSearchPath = dataPath.resolve(".lmdb.camelCaseSearch");
+    init {
         if (resetDBs) {
             try {
                 if (Files.exists(lmdbGlobalPath)) {
-                    Files.walkFileTree(lmdbGlobalPath, DELETE);
+                    Files.walkFileTree(lmdbGlobalPath, DELETE)
                 }
                 if (Files.exists(lmdbTrigramPath)) {
-                    Files.walkFileTree(lmdbTrigramPath, DELETE);
+                    Files.walkFileTree(lmdbTrigramPath, DELETE)
                 }
                 if (Files.exists(lmdbCamelCaseSearchPath)) {
-                    Files.walkFileTree(lmdbCamelCaseSearchPath, DELETE);
+                    Files.walkFileTree(lmdbCamelCaseSearchPath, DELETE)
                 }
-            } catch (final IOException e) {
-                throw new RuntimeException(e);
+            } catch (e: IOException) {
+                throw RuntimeException(e)
             }
         }
-        FileUtils.createParentDirectories(lmdbTrigramPath, lmdbGlobalPath, lmdbCamelCaseSearchPath);
+        createParentDirectories(lmdbTrigramPath, lmdbGlobalPath, lmdbCamelCaseSearchPath)
 
-        globalEnv = initGlobalEnv();
-        variables = initVariables(globalEnv);
-        revisions = initRevisions(globalEnv, variables);
-        pathCache = initFileCache(globalEnv, variables);
-        symbolCache = initSymbolCache(globalEnv, variables);
-
+        globalEnv = initGlobalEnv()
+        variables = initVariables(globalEnv)
+        revisions = initRevisions(globalEnv, variables)
+        pathCache = initFileCache(globalEnv, variables)
+        symbolCache = initSymbolCache(globalEnv, variables)
     }
 
-
-    private Env<ByteBuffer> initGlobalEnv() {
+    private fun initGlobalEnv(): Env<ByteBuffer> {
         return Env.create()
-                .setMapSize(10_485_760)
-                .setMaxDbs(7)
-                .setMaxReaders(2)
-                .open(lmdbGlobalPath.toFile());
+            .setMapSize(10485760)
+            .setMaxDbs(7)
+            .setMaxReaders(2)
+            .open(lmdbGlobalPath.toFile())
     }
 
-    private LmdbString2Int initVariables(final Env<ByteBuffer> env) {
-        return new LmdbString2Int(env, "variables");
+    private fun initVariables(env: Env<ByteBuffer>): LmdbString2Int {
+        return LmdbString2Int(env, "variables")
     }
 
-    private Revisions initRevisions(final Env<ByteBuffer> env, final LmdbString2Int variables) {
-        return new RevisionsImpl(variables, new LmdbInt2Int(globalEnv, "revisions"));
+    private fun initRevisions(env: Env<ByteBuffer>, variables: LmdbString2Int): Revisions {
+        return RevisionsImpl(variables, LmdbInt2Int(globalEnv, "revisions"))
     }
 
-    private CountingCacheImpl<Path> initFileCache(final Env<ByteBuffer> globalEnv, final LmdbString2Int variables) {
-        final CountingCacheImpl<Path>
-                pathCache = new CountingCacheImpl<>("files",
-                new LmdbInt2Path(globalEnv, "files"),
-                variables);
-        pathCache.init();
-        pathCache.restoreObjectsFromDB();
-        return pathCache;
+    private fun initFileCache(globalEnv: Env<ByteBuffer>, variables: LmdbString2Int): CountingCacheImpl<Path> {
+        val pathCache = CountingCacheImpl(
+            "files",
+            LmdbInt2Path(globalEnv, "files"),
+            variables
+        )
+        pathCache.init()
+        pathCache.restoreObjectsFromDB()
+        return pathCache
     }
 
-    private CountingCacheImpl<Symbol> initSymbolCache(
-            final Env<ByteBuffer> globalEnv, final LmdbString2Int variables) {
-        final CountingCacheImpl<Symbol>
-                symbolCache =
-                new CountingCacheImpl<>("symbols",
-                        new LmdbInt2Symbol(globalEnv, "symbols"),
-                        variables);
-        symbolCache.init();
-        symbolCache.restoreObjectsFromDB();
-        return symbolCache;
+    private fun initSymbolCache(
+        globalEnv: Env<ByteBuffer>, variables: LmdbString2Int
+    ): CountingCacheImpl<Symbol> {
+        val symbolCache =
+            CountingCacheImpl(
+                "symbols",
+                LmdbInt2Symbol(globalEnv, "symbols"),
+                variables
+            )
+        symbolCache.init()
+        symbolCache.restoreObjectsFromDB()
+        return symbolCache
     }
 
-    public EchoIndex addEchoIndex() {
-        final EchoIndex echoIndex = new EchoIndex();
-        indexes.put(EchoIndex.class, echoIndex);
-        return echoIndex;
+    fun addEchoIndex(): EchoIndex {
+        val echoIndex = EchoIndex()
+        indexes[EchoIndex::class.java] = echoIndex
+        return echoIndex
     }
 
-    public SizeCounterIndex addSizeCounterIndex() {
-        final var sizeCounterIndex = new SizeCounterIndex();
-        indexes.put(SizeCounterIndex.class, sizeCounterIndex);
-        return sizeCounterIndex;
+    fun addSizeCounterIndex(): SizeCounterIndex {
+        val sizeCounterIndex = SizeCounterIndex()
+        indexes[SizeCounterIndex::class.java] = sizeCounterIndex
+        return sizeCounterIndex
     }
 
-    public TrigramIndex addTrigramIndex() {
-        final var trigramEnv = Env.create()
-                .setMapSize(10_485_760_000L)
-                .setMaxDbs(3)
-                .setMaxReaders(2)
-                .open(lmdbTrigramPath.toFile());
-        envs.add(trigramEnv);
-        final TrigramIndex trigramHistoryIndex = new TrigramIndex(trigramEnv, pathCache, revisions);
-        indexes.put(TrigramIndex.class, trigramHistoryIndex);
-        return trigramHistoryIndex;
+    fun addTrigramIndex(): TrigramIndex {
+        val trigramEnv = Env.create()
+            .setMapSize(10485760000L)
+            .setMaxDbs(3)
+            .setMaxReaders(2)
+            .open(lmdbTrigramPath.toFile())
+        envs.add(trigramEnv)
+        val trigramHistoryIndex = TrigramIndex(trigramEnv, pathCache, revisions)
+        indexes[TrigramIndex::class.java] = trigramHistoryIndex
+        return trigramHistoryIndex
     }
 
-    public CamelCaseIndex addCamelCaseIndex() {
-        final var camelCaseEnv = Env.create()
-                .setMapSize(10_485_760_00)
-                .setMaxDbs(3)
-                .setMaxReaders(2)
-                .open(lmdbCamelCaseSearchPath.toFile());
-        envs.add(camelCaseEnv);
-        final var camelCaseIndex = new CamelCaseIndex(camelCaseEnv, symbolCache, pathCache);
-        indexes.put(CamelCaseIndex.class, camelCaseIndex);
-        return camelCaseIndex;
+    fun addCamelCaseIndex(): CamelCaseIndex {
+        val camelCaseEnv = Env.create()
+            .setMapSize(1048576000)
+            .setMaxDbs(3)
+            .setMaxReaders(2)
+            .open(lmdbCamelCaseSearchPath.toFile())
+        envs.add(camelCaseEnv)
+        val camelCaseIndex = CamelCaseIndex(camelCaseEnv, symbolCache, pathCache)
+        indexes[CamelCaseIndex::class.java] = camelCaseIndex
+        return camelCaseIndex
     }
 
-    public void parseGitRepository(final Path pathToRepository) {
-        parseGitRepository(pathToRepository, true);
+    @JvmOverloads
+    fun parseGitRepository(pathToRepository: Path, parseOnlyHead: Boolean = true) {
+        parseGitRepository(pathToRepository, Int.MAX_VALUE, true)
     }
 
-    public void parseGitRepository(final Path pathToRepository, final int limit) {
-        parseGitRepository(pathToRepository, limit, true);
-    }
-    public void parseGitRepository(final Path pathToRepository, final boolean parseOnlyHead) {
-        parseGitRepository(pathToRepository, Integer.MAX_VALUE, true);
-    }
-
-    public void parseGitRepository(final Path pathToRepository, final int limit, final boolean parseOnlyHead) {
-        try (final Git git = Git.open(pathToRepository.toFile())) {
-            lmdbSha12Int = new LmdbSha12Int(globalEnv, "git_commits_to_revision");
-            final var parser = new GitParser(git, this,
+    @JvmOverloads
+    fun parseGitRepository(pathToRepository: Path, limit: Int, parseOnlyHead: Boolean = true) {
+        try {
+            Git.open(pathToRepository.toFile()).use { git ->
+                lmdbSha12Int = LmdbSha12Int(globalEnv, "git_commits_to_revision")
+                val parser = GitParser(
+                    git, this,
                     lmdbSha12Int,
-                    limit);
-            if (revisions.getCurrentRevision().equals(Revision.NULL)) {
-                if (parseOnlyHead) {
-                    parser.parseHead();
-                } else {
-                    parser.parseAll();
+                    limit
+                )
+                if (revisions.currentRevision == Revision.NULL) {
+                    if (parseOnlyHead) {
+                        parser.parseHead()
+                    } else {
+                        parser.parseAll()
+                    }
+                    checkoutToGitRevision(parser.head)
                 }
-                checkoutToGitRevision(parser.getHead());
+                System.err.println("Parsed")
             }
-            System.err.println("Parsed");
-        } catch (final IOException ioException) {
-            throw new RuntimeException(ioException);
+        } catch (ioException: IOException) {
+            throw RuntimeException(ioException)
         }
     }
 
-    public void checkout(final Revision targetRevision) {
-        indexes.values().forEach(index -> index.checkout(targetRevision));
-        revisions.setCurrentRevision(targetRevision);
+    fun checkout(targetRevision: Revision) {
+        indexes.values.forEach(Consumer { index: Index<*, *> ->
+            index.checkout(targetRevision)
+        })
+        revisions.currentRevision = targetRevision
     }
 
-    public void checkoutToGitRevision(final String commitHashName) {
-        final int revision = lmdbSha12Int.get(commitHashName);
-        if (revision == -1) {
-            throw new IllegalArgumentException();
+    fun checkoutToGitRevision(commitHashName: String?) {
+        val revision = lmdbSha12Int!!.get(commitHashName)
+        require(revision != -1)
+        checkout(Revision(revision))
+    }
+
+    override fun close() {
+        envs.forEach(Consumer { obj: Env<ByteBuffer> -> obj.close() })
+        globalEnv.close()
+    }
+
+    val fileCache: CountingCache<Path>
+        get() = pathCache
+
+    fun applyChanges(changes: List<Change>) {
+        indexes.values.forEach(Consumer { it: Index<*, *> -> it.processChanges(changes) })
+    }
+
+    fun <T, U> getIndex(indexClass: Class<out Index<T?, U?>?>): Index<*, *> {
+        return indexes[indexClass]!!
+    }
+
+    fun nextRevision() {
+        revisions.currentRevision = revisions.addRevision(
+            revisions.currentRevision
+        )
+    }
+
+    companion object {
+        private val DELETE: SimpleFileVisitor<Path> = object : SimpleFileVisitor<Path>() {
+            @Throws(IOException::class)
+            override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+                Files.delete(file)
+                return FileVisitResult.CONTINUE
+            }
+
+            @Throws(IOException::class)
+            override fun postVisitDirectory(dir: Path, exc: IOException): FileVisitResult {
+                Files.delete(dir)
+                return FileVisitResult.CONTINUE
+            }
         }
-        checkout(new Revision(revision));
-    }
-
-    @Override
-    public void close() {
-        envs.forEach(Env::close);
-        globalEnv.close();
-    }
-
-    public Revisions getRevisions() {
-        return revisions;
-    }
-
-    public CountingCache<Path> getFileCache() {
-        return pathCache;
-    }
-
-    public LmdbString2Int getVariables() {
-        return variables;
-    }
-
-    public void applyChanges(final List<Change> changes) {
-        indexes.values().forEach(it -> it.processChanges(changes));
-    }
-
-    public <T, U> Index<?, ?> getIndex(final Class<? extends Index<T, U>> indexClass) {
-        return indexes.get(indexClass);
-    }
-
-    public void nextRevision() {
-        revisions.setCurrentRevision(
-                revisions.addRevision(
-                        revisions.getCurrentRevision()
-                ));
     }
 }

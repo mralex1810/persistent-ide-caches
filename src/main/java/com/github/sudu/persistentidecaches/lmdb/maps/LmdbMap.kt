@@ -1,5 +1,3 @@
-package com.github.sudu.persistentidecaches.lmdb.maps;
+package com.github.sudu.persistentidecaches.lmdb.maps
 
-public interface LmdbMap {
-
-}
+interface LmdbMap 

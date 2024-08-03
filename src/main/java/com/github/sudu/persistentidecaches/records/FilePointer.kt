@@ -1,7 +1,6 @@
-package com.github.sudu.persistentidecaches.records;
+package com.github.sudu.persistentidecaches.records
 
-import java.nio.file.Path;
+import java.nio.file.Path
 
-public record FilePointer(Path file, int offset) {
-
-}
+@JvmRecord
+data class FilePointer(@JvmField val file: Path, val offset: Int)

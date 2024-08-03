@@ -1,9 +1,8 @@
-package com.github.sudu.persistentidecaches.records;
+package com.github.sudu.persistentidecaches.records
 
-public record LongInt(long l, int i) {
-
-    @Override
-    public int hashCode() {
-        return (int)( 31 * l + i);
+@JvmRecord
+data class LongInt(val l: Long, val i: Int) {
+    override fun hashCode(): Int {
+        return (31 * l + i).toInt()
     }
 }

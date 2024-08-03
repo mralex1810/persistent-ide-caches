@@ -1,73 +1,74 @@
-package com.github.sudu.persistentidecaches.trigram;
+package com.github.sudu.persistentidecaches.trigram
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import com.github.sudu.persistentidecaches.records.Trigram
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import java.util.Map
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.BiConsumer
 
-import com.github.sudu.persistentidecaches.records.Trigram;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-public class TrigramCounterTest {
-
-    private static final List<Trigram> trigrams = List.of(
-            new Trigram(new byte[]{1, 2, 3}),
-            new Trigram(new byte[]{1, 4, 5}),
-            new Trigram(new byte[]{2, 2, 2}),
-            new Trigram(new byte[]{3, 3, 3}),
-            new Trigram(new byte[]{4, 5, 1})
-    );
-    private TrigramCounter counter;
+class TrigramCounterTest {
+    private var counter: TrigramCounter? = null
 
     @BeforeEach
-    public void resetCounter() {
-        counter = new TrigramCounter();
+    fun resetCounter() {
+        counter = TrigramCounter()
     }
 
     @Test
-    public void testAdd() {
-        assertEquals(0, counter.get(trigrams.get(0)));
-        counter.add(trigrams.get(0), 2);
-        assertEquals(2, counter.get(trigrams.get(0)));
-        counter.add(trigrams.get(1), 10);
-        assertEquals(10, counter.get(trigrams.get(1)));
-        counter.add(trigrams.get(1), 10);
-        assertEquals(2, counter.get(trigrams.get(0)));
-        assertEquals(20, counter.get(trigrams.get(1)));
+    fun testAdd() {
+        Assertions.assertEquals(0, counter!!.get(trigrams[0]))
+        counter!!.add(trigrams[0], 2)
+        Assertions.assertEquals(2, counter!!.get(trigrams[0]))
+        counter!!.add(trigrams[1], 10)
+        Assertions.assertEquals(10, counter!!.get(trigrams[1]))
+        counter!!.add(trigrams[1], 10)
+        Assertions.assertEquals(2, counter!!.get(trigrams[0]))
+        Assertions.assertEquals(20, counter!!.get(trigrams[1]))
     }
 
     @Test
-    public void testDecrease() {
-        assertEquals(0, counter.get(trigrams.get(0)));
-        counter.decrease(trigrams.get(0), 2);
-        assertEquals(-2, counter.get(trigrams.get(0)));
-        counter.decrease(trigrams.get(1), 10);
-        assertEquals(-10, counter.get(trigrams.get(1)));
-        counter.decrease(trigrams.get(1), 10);
-        assertEquals(-2, counter.get(trigrams.get(0)));
-        assertEquals(-20, counter.get(trigrams.get(1)));
+    fun testDecrease() {
+        Assertions.assertEquals(0, counter!!.get(trigrams[0]))
+        counter!!.decrease(trigrams[0], 2)
+        Assertions.assertEquals(-2, counter!!.get(trigrams[0]))
+        counter!!.decrease(trigrams[1], 10)
+        Assertions.assertEquals(-10, counter!!.get(trigrams[1]))
+        counter!!.decrease(trigrams[1], 10)
+        Assertions.assertEquals(-2, counter!!.get(trigrams[0]))
+        Assertions.assertEquals(-20, counter!!.get(trigrams[1]))
     }
 
     @Test
-    public void testForEach() {
-        counter.add(trigrams.get(0), 2);
-        counter.add(trigrams.get(1), 10);
-        counter.add(trigrams.get(1), 15);
-        counter.add(trigrams.get(2), -3);
-        counter.add(trigrams.get(4), -5);
-        counter.decrease(trigrams.get(4), 10);
-        final var map = Map.of(
-                trigrams.get(0), 2,
-                trigrams.get(1), 25,
-                trigrams.get(2), -3,
-                trigrams.get(4), -15
-        );
-        final AtomicInteger count = new AtomicInteger();
-        counter.forEach(((trigram, integer) -> {
-            count.addAndGet(1);
-            assertEquals(map.get(trigram), integer);
-        }));
-        assertEquals(count.get(), map.size());
+    fun testForEach() {
+        counter!!.add(trigrams[0], 2)
+        counter!!.add(trigrams[1], 10)
+        counter!!.add(trigrams[1], 15)
+        counter!!.add(trigrams[2], -3)
+        counter!!.add(trigrams[4], -5)
+        counter!!.decrease(trigrams[4], 10)
+        val map = Map.of(
+            trigrams[0], 2,
+            trigrams[1], 25,
+            trigrams[2], -3,
+            trigrams[4], -15
+        )
+        val count = AtomicInteger()
+        counter!!.forEach((BiConsumer { trigram: Trigram, integer: Int? ->
+            count.addAndGet(1)
+            Assertions.assertEquals(map[trigram], integer)
+        }))
+        Assertions.assertEquals(count.get(), map.size)
+    }
+
+    companion object {
+        private val trigrams: List<Trigram> = java.util.List.of(
+            Trigram(byteArrayOf(1, 2, 3)),
+            Trigram(byteArrayOf(1, 4, 5)),
+            Trigram(byteArrayOf(2, 2, 2)),
+            Trigram(byteArrayOf(3, 3, 3)),
+            Trigram(byteArrayOf(4, 5, 1))
+        )
     }
 }

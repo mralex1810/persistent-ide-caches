@@ -1,8 +1,5 @@
-package com.github.sudu.persistentidecaches.utils;
+package com.github.sudu.persistentidecaches.utils
 
-@FunctionalInterface
-public interface TriConsumer<T, U, V> {
-
-    void accept(T t, U u, V v);
-
+fun interface TriConsumer<T, U, V> {
+    fun accept(t: T, u: U, v: V)
 }

@@ -1,37 +1,26 @@
-package com.github.sudu.persistentidecaches.utils;
+package com.github.sudu.persistentidecaches.utils
 
-import com.github.sudu.persistentidecaches.Revisions;
-import com.github.sudu.persistentidecaches.records.Revision;
-import java.util.HashMap;
-import java.util.Map;
+import com.github.sudu.persistentidecaches.Revisions
+import com.github.sudu.persistentidecaches.records.Revision
 
-public class DummyRevisions implements Revisions {
+class DummyRevisions : Revisions {
+    private val parents: MutableMap<Revision, Revision> = HashMap()
+    override var currentRevision: Revision = Revision(0)
+    private var revisions = 1
 
-    private final Map<Revision, Revision> parents = new HashMap<>();
-    private Revision currentRevision;
-    private int revisions = 0;
-
-    public Revision getParent(final Revision revision) {
-        return parents.get(revision);
+    override fun getParent(revision: Revision): Revision? {
+        return parents[revision]
     }
 
-    public Revision addRevision(final Revision parent) {
-        final Revision rev = new Revision(revisions++);
-        parents.put(rev, parent);
-        return rev;
+    override fun addRevision(parent: Revision): Revision {
+        val rev = Revision(revisions++)
+        parents[rev] = parent
+        return rev
     }
 
-    public Revision addLastRevision() {
-        currentRevision = addRevision(currentRevision);
-        return currentRevision;
-    }
-
-    public Revision getCurrentRevision() {
-        return currentRevision;
-    }
-
-    public void setCurrentRevision(final Revision revision) {
-        currentRevision = revision;
+    override fun addLastRevision(): Revision {
+        currentRevision = addRevision(currentRevision!!)
+        return currentRevision
     }
 }
 

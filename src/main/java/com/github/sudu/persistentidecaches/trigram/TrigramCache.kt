@@ -1,39 +1,28 @@
-package com.github.sudu.persistentidecaches.trigram;
+package com.github.sudu.persistentidecaches.trigram
 
-import com.github.sudu.persistentidecaches.Revisions;
-import com.github.sudu.persistentidecaches.lmdb.CountingCacheImpl;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbInt2Bytes;
-import com.github.sudu.persistentidecaches.records.Revision;
-import com.github.sudu.persistentidecaches.utils.ByteArrIntIntConsumer;
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
-import java.nio.file.Path;
+import com.github.sudu.persistentidecaches.Revisions
+import com.github.sudu.persistentidecaches.lmdb.CountingCacheImpl
+import com.github.sudu.persistentidecaches.lmdb.maps.LmdbInt2Bytes
+import com.github.sudu.persistentidecaches.records.Revision
+import com.github.sudu.persistentidecaches.utils.ByteArrIntIntConsumer
+import java.io.BufferedInputStream
+import java.io.ByteArrayInputStream
+import java.nio.file.Path
 
-
-public class TrigramCache {
-
-    private final LmdbInt2Bytes pointers;
-    private final Revisions revisions;
-    private final CountingCacheImpl<Path> pathCache;
-
-    public TrigramCache(final Revisions revisions, final LmdbInt2Bytes pointers, final CountingCacheImpl<Path> pathCache) {
-        this.revisions = revisions;
-        this.pointers = pointers;
-        this.pathCache = pathCache;
+class TrigramCache(
+    private val revisions: Revisions,
+    private val pointers: LmdbInt2Bytes,
+    private val pathCache: CountingCacheImpl<Path>
+) {
+    fun pushCluster(timestamp: Long, deltas: TrigramFileCounter?) {
+        val revision = revisions.currentRevision
+        pointers.put(revision.revision, TrigramDataFileCluster(deltas, pathCache).toBytes())
     }
 
-    public void pushCluster(final long timestamp, final TrigramFileCounter deltas) {
-        final var revision = revisions.getCurrentRevision();
-        pointers.put(revision.revision(), new TrigramDataFileCluster(deltas, pathCache).toBytes());
-    }
-
-    public void processDataCluster(final Revision revision, final ByteArrIntIntConsumer consumer) {
-        final byte[] data = pointers.get(revision.revision());
-        if (data == null) {
-            return;
-        }
-        final var bufferedInputStream =
-                new BufferedInputStream(new ByteArrayInputStream(pointers.get(revision.revision())));
-        TrigramDataFileCluster.readTrigramDataFileCluster(bufferedInputStream, consumer);
+    fun processDataCluster(revision: Revision, consumer: ByteArrIntIntConsumer?) {
+        val data = pointers.get(revision.revision) ?: return
+        val bufferedInputStream =
+            BufferedInputStream(ByteArrayInputStream(pointers.get(revision.revision)))
+        TrigramDataFileCluster.readTrigramDataFileCluster(bufferedInputStream, consumer)
     }
 }

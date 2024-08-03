@@ -1,30 +1,25 @@
-package com.github.sudu.persistentidecaches.lmdb.maps;
+package com.github.sudu.persistentidecaches.lmdb.maps
 
-import java.nio.ByteBuffer;
-import org.lmdbjava.Dbi;
-import org.lmdbjava.Env;
+import org.lmdbjava.Dbi
+import org.lmdbjava.Env
+import java.nio.ByteBuffer
 
-public class LmdbInt2Bytes extends LmdbAbstractInt2Smth implements LmdbMap {
+class LmdbInt2Bytes : LmdbAbstractInt2Smth, LmdbMap {
+    constructor(env: Env<ByteBuffer>, dbName: String) : super(env, dbName)
 
-    public LmdbInt2Bytes(final Env<ByteBuffer> env, final String dbName) {
-        super(env, dbName);
+    protected constructor(env: Env<ByteBuffer>, db: Dbi<ByteBuffer>) : super(env, db)
+
+    fun put(key: Int, value: ByteArray) {
+        putImpl(getKey(key), ByteBuffer.allocateDirect(value.size).put(value).flip())
     }
 
-    protected LmdbInt2Bytes(final Env<ByteBuffer> env, final Dbi<ByteBuffer> db) {
-        super(env, db);
-    }
-
-    public void put(final int key, final byte[] value) {
-        putImpl(getKey(key), ByteBuffer.allocateDirect(value.length).put(value).flip());
-    }
-
-    public byte[] get(final int key) {
-        final var value = getImpl(getKey(key));
+    fun get(key: Int): ByteArray? {
+        val value = getImpl(getKey(key))
         if (value != null) {
-            final var data = new byte[value.remaining()];
-            value.get(data);
-            return data;
+            val data = ByteArray(value.remaining())
+            value[data]
+            return data
         }
-        return null;
+        return null
     }
 }

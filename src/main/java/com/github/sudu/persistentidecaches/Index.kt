@@ -1,11 +1,9 @@
-package com.github.sudu.persistentidecaches;
+package com.github.sudu.persistentidecaches
 
-import com.github.sudu.persistentidecaches.records.Revision;
+import com.github.sudu.persistentidecaches.records.Revision
 
-public interface Index<Key, Value> extends ChangeProcessor {
+interface Index<Key, Value> : ChangeProcessor {
+    fun getValue(key: Key, revision: Revision): Value?
 
-
-    Value getValue(Key key, Revision revision);
-
-    void checkout(Revision revision);
+    fun checkout(revision: Revision)
 }

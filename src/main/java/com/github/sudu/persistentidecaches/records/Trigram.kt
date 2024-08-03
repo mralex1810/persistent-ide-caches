@@ -1,69 +1,49 @@
-package com.github.sudu.persistentidecaches.records;
+package com.github.sudu.persistentidecaches.records
 
-import java.util.Arrays;
+import kotlin.math.abs
 
-public record Trigram(byte[] trigram) implements Comparable<Trigram> {
+data class Trigram(val trigram: ByteArray) : Comparable<Trigram> {
+    constructor(i: Int) : this(i.toLong())
 
-    public Trigram(final int i) {
-        this((long) i);
+    constructor(l: Long) : this(byteArrayOf((l shr 16).toByte(), (l shr 8).toByte(), l.toByte()))
+
+    override fun hashCode(): Int {
+        return toInt(trigram) * 31 + 25
     }
 
-    public Trigram(final long l) {
-        this(new byte[]{(byte) (l >> 16), (byte) (l >> 8), (byte) l});
-
+    override fun compareTo(o: Trigram): Int {
+        return Integer.compare(toInt(trigram), toInt(o.trigram))
     }
 
-    public static long toLong(final byte[] bytes) {
-        return toInt(bytes);
+    override fun toString(): String {
+        return "Trigram" + trigram.contentToString()
     }
 
-    public static int toInt(final byte[] bytes) {
-        return (((((Math.abs(bytes[0])) << 8) + Math.abs(bytes[1]))) << 8) + Math.abs(bytes[2]);
+    fun toPrettyString(): String {
+        return (Char(trigram[0].toUShort()).toString() + Char(trigram[1].toUShort()) + Char(
+            trigram[2].toUShort()
+        )).replace("\n", "\\n")
     }
 
-    public int toInt() {
-        return toInt(trigram);
+    fun toLowerCase(): Trigram {
+        return Trigram(
+            byteArrayOf(
+                trigram[0].toInt().toChar().lowercaseChar().code.toByte(),
+                trigram[1].toInt().toChar().lowercaseChar().code.toByte(),
+                trigram[2].toInt().toChar().lowercaseChar().code.toByte()
+            )
+        )
     }
 
-    public long toLong() {
-        return toLong(trigram);
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-        if (this == o) {
-            return true;
+    companion object {
+        fun toLong(bytes: ByteArray): Long {
+            return toInt(bytes).toLong()
         }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
+
+        fun toInt(bytes: ByteArray): Int {
+            return (((abs(bytes[0].toInt()) shl 8) +
+                    abs(bytes[1].toInt())) shl 8) +
+                    abs(bytes[2].toInt())
         }
-        final Trigram trigram1 = (Trigram) o;
-        return Arrays.equals(trigram, trigram1.trigram);
-    }
-
-    @Override
-    public int hashCode() {
-        return toInt() * 31 + 25;
-    }
-    @Override
-    public int compareTo(final Trigram o) {
-        return Integer.compare(toInt(trigram), toInt(o.trigram));
-    }
-
-    @Override
-    public String toString() {
-        return "Trigram" + Arrays.toString(trigram);
-    }
-
-    public String toPrettyString() {
-        return (String.valueOf((char) trigram[0]) + (char) trigram[1] + (char) trigram[2]).replace("\n", "\\n");
-    }
-
-    public Trigram toLowerCase() {
-        return new Trigram(new byte[]{
-                (byte) Character.toLowerCase(trigram[0]),
-                (byte) Character.toLowerCase(trigram[1]),
-                (byte) Character.toLowerCase(trigram[2])
-        });
     }
 }

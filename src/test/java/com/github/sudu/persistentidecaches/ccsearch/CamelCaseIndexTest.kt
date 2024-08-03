@@ -1,33 +1,36 @@
-package com.github.sudu.persistentidecaches.ccsearch;
+package com.github.sudu.persistentidecaches.ccsearch
 
-import com.github.sudu.persistentidecaches.records.Trigram;
-import com.github.sudu.persistentidecaches.symbols.Symbols;
-import java.util.List;
-import java.util.stream.Stream;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import com.github.sudu.persistentidecaches.records.Trigram
+import com.github.sudu.persistentidecaches.symbols.Symbols
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Test
+import java.util.stream.Stream
 
-class CamelCaseIndexTest {
-
-    @Test
-    void getSymbolsFromStringTest() {
-        final var javaAClass = """
+internal class CamelCaseIndexTest {
+    @get:Test
+    val symbolsFromStringTest: Unit
+        get() {
+            val javaAClass = """
                 public class MyBestClass {
                     public final int myCuteInt;
                     public void myBarMethod() {
                     }
                 }
-                """;
-        Assertions.assertEquals(CamelCaseIndex.getSymbolsFromString(javaAClass), new Symbols(
-                List.of("MyBestClass"),
-                List.of("myCuteInt"),
-                List.of("myBarMethod")
-        ));
-    }
+                
+                """.trimIndent()
+            Assertions.assertEquals(
+                CamelCaseIndex.getSymbolsFromString(javaAClass), Symbols(
+                    listOf("MyBestClass"),
+                    listOf("myCuteInt"),
+                    listOf("myBarMethod")
+                )
+            )
+        }
 
-    @Test
-    void getSymbolsFromStringTestSomeRealFile() {
-        final var javaAClass = """
+    @get:Test
+    val symbolsFromStringTestSomeRealFile: Unit
+        get() {
+            val javaAClass = """
                 package info.kgeorgiy.ja.chulkov.walk;
                                 
                                 
@@ -64,64 +67,74 @@ class CamelCaseIndexTest {
                     }
                 }
                                 
-                """;
-        Assertions.assertEquals(CamelCaseIndex.getSymbolsFromString(javaAClass), new Symbols(
-                List.of("HashResultsHandler"),
-                List.of("ERROR_HASH_HEX", "writer"),
-                List.of("processSuccess", "processError", "processResult", "close")
-        ));
-    }
+                
+                                
+                """.trimIndent()
+            Assertions.assertEquals(
+                CamelCaseIndex.getSymbolsFromString(javaAClass), Symbols(
+                    listOf("HashResultsHandler"),
+                    listOf("ERROR_HASH_HEX", "writer"),
+                    listOf("processSuccess", "processError", "processResult", "close")
+                )
+            )
+        }
 
 
-    @Test
-    void isCamelCaseTest() {
-        Assertions.assertTrue(CamelCaseIndex.isCamelCase("Test"));
-        Assertions.assertTrue(CamelCaseIndex.isCamelCase("True"));
-        Assertions.assertTrue(CamelCaseIndex.isCamelCase("TestThisCamel"));
-        Assertions.assertTrue(CamelCaseIndex.isCamelCase("CamelCaseSearch"));
-        Assertions.assertTrue(CamelCaseIndex.isCamelCase("CamelCaseField"));
-        Assertions.assertFalse(CamelCaseIndex.isCamelCase("NOT_CAMEL_CASE"));
-        Assertions.assertFalse(CamelCaseIndex.isCamelCase("Bad$Symbol"));
-    }
+    @get:Test
+    val isCamelCaseTest: Unit
+        get() {
+            Assertions.assertTrue(CamelCaseIndex.isCamelCase("Test"))
+            Assertions.assertTrue(CamelCaseIndex.isCamelCase("True"))
+            Assertions.assertTrue(CamelCaseIndex.isCamelCase("TestThisCamel"))
+            Assertions.assertTrue(CamelCaseIndex.isCamelCase("CamelCaseSearch"))
+            Assertions.assertTrue(CamelCaseIndex.isCamelCase("CamelCaseField"))
+            Assertions.assertFalse(CamelCaseIndex.isCamelCase("NOT_CAMEL_CASE"))
+            Assertions.assertFalse(CamelCaseIndex.isCamelCase("Bad\$Symbol"))
+        }
 
-    @Test
-    void getInterestTrigramsTest() {
-        Assertions.assertEquals(CamelCaseIndex.getInterestTrigrams("ItCamelCase").stream().sorted().toList(),
+    @get:Test
+    val interestTrigramsTest: Unit
+        get() {
+            Assertions.assertEquals(CamelCaseIndex.getInterestTrigrams("ItCamelCase").stream().sorted().toList(),
                 Stream.of(
-                        "$It",
-                        "$IC",
-                        "ItC",
-                        "ICa",
-                        "ICC",
-                        "tCa",
-                        "tCC",
-                        "Cam",
-                        "CaC",
-                        "CCa",
-                        "ame",
-                        "amC",
-                        "aCa",
-                        "mel",
-                        "meC",
-                        "mCa",
-                        "elC",
-                        "eCa",
-                        "lCa",
-                        "Cas",
-                        "ase"
-                ).map(String::getBytes).map(Trigram::new).sorted().toList());
-    }
+                    "\$It",
+                    "\$IC",
+                    "ItC",
+                    "ICa",
+                    "ICC",
+                    "tCa",
+                    "tCC",
+                    "Cam",
+                    "CaC",
+                    "CCa",
+                    "ame",
+                    "amC",
+                    "aCa",
+                    "mel",
+                    "meC",
+                    "mCa",
+                    "elC",
+                    "eCa",
+                    "lCa",
+                    "Cas",
+                    "ase"
+                ).map { obj: String -> obj.toByteArray() }
+                    .map { trigram: ByteArray? -> Trigram(trigram!!) }.sorted().toList()
+            )
+        }
 
-    @Test
-    void getInterestTrigramsTest2() {
-        Assertions.assertEquals(CamelCaseIndex.getInterestTrigrams("writer").stream().sorted().toList(),
+    @get:Test
+    val interestTrigramsTest2: Unit
+        get() {
+            Assertions.assertEquals(CamelCaseIndex.getInterestTrigrams("writer").stream().sorted().toList(),
                 Stream.of(
-                        "$wr",
-                        "wri",
-                        "rit",
-                        "ite",
-                        "ter"
-                ).map(String::getBytes).map(Trigram::new).sorted().toList());
-
-    }
+                    "\$wr",
+                    "wri",
+                    "rit",
+                    "ite",
+                    "ter"
+                ).map { obj: String -> obj.toByteArray() }
+                    .map { trigram: ByteArray? -> Trigram(trigram!!) }.sorted().toList()
+            )
+        }
 }

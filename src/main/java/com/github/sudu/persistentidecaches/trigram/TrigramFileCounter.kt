@@ -1,44 +1,47 @@
-package com.github.sudu.persistentidecaches.trigram;
+package com.github.sudu.persistentidecaches.trigram
 
-import com.github.sudu.persistentidecaches.records.Trigram;
-import com.github.sudu.persistentidecaches.records.TrigramFile;
-import com.github.sudu.persistentidecaches.utils.Counter;
-import com.github.sudu.persistentidecaches.utils.TriConsumer;
-import java.nio.file.Path;
-import java.util.Map;
+import com.github.sudu.persistentidecaches.records.Trigram
+import com.github.sudu.persistentidecaches.records.TrigramFile
+import com.github.sudu.persistentidecaches.utils.Counter
+import com.github.sudu.persistentidecaches.utils.TriConsumer
+import java.nio.file.Path
 
-public class TrigramFileCounter extends Counter<TrigramFile> {
+class TrigramFileCounter : Counter<TrigramFile> {
+    constructor()
 
-    public static final TrigramFileCounter EMPTY_COUNTER = new TrigramFileCounter();
+    constructor(counter: Map<TrigramFile?, Int?>?) : super(counter)
 
-    public TrigramFileCounter() {
+    fun add(trigram: Trigram?, file: Path?, delta: Int) {
+        add(TrigramFile(trigram!!, file!!), delta)
     }
 
-    public TrigramFileCounter(final Map<TrigramFile, Integer> counter) {
-        super(counter);
+    fun decrease(trigram: Trigram?, file: Path?, delta: Int) {
+        add(trigram, file, -delta)
     }
 
-    public void add(final Trigram trigram, final Path file, final int delta) {
-        add(new TrigramFile(trigram, file), delta);
+    fun add(file: Path?, counter: TrigramCounter) {
+        counter.forEach { trigram: Trigram?, integer: Int -> add(trigram, file, integer) }
     }
 
-    public void decrease(final Trigram trigram, final Path file, final int delta) {
-        add(trigram, file, -delta);
+    fun decrease(file: Path?, counter: TrigramCounter) {
+        counter.forEach { trigram: Trigram?, integer: Int -> decrease(trigram, file, integer) }
     }
 
-    public void add(final Path file, final TrigramCounter counter) {
-        counter.forEach((trigram, integer) -> add(trigram, file, integer));
+    fun forEach(consumer: TriConsumer<Trigram, Path, Int>) {
+        forEach { trigramFile: TrigramFile, integer: Int ->
+            consumer.accept(
+                trigramFile.trigram,
+                trigramFile.file,
+                integer
+            )
+        }
     }
 
-    public void decrease(final Path file, final TrigramCounter counter) {
-        counter.forEach((trigram, integer) -> decrease(trigram, file, integer));
+    fun get(trigram: Trigram?, file: Path?): Int {
+        return get(TrigramFile(trigram!!, file!!))
     }
 
-    public void forEach(final TriConsumer<Trigram, Path, Integer> consumer) {
-        forEach(((trigramFile, integer) -> consumer.accept(trigramFile.trigram(), trigramFile.file(), integer)));
-    }
-
-    public int get(final Trigram trigram, final Path file) {
-        return get(new TrigramFile(trigram, file));
+    companion object {
+        val EMPTY_COUNTER: TrigramFileCounter = TrigramFileCounter()
     }
 }

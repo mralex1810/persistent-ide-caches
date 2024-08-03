@@ -1,5 +1,4 @@
-package com.github.sudu.persistentidecaches.records;
+package com.github.sudu.persistentidecaches.records
 
-public record ByteArrIntInt(byte[] trigram, int num, int delta) {
-
-}
+@JvmRecord
+data class ByteArrIntInt(@JvmField val trigram: ByteArray, @JvmField val num: Int, @JvmField val delta: Int)

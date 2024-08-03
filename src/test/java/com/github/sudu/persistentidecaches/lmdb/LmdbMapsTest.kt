@@ -1,146 +1,152 @@
-package com.github.sudu.persistentidecaches.lmdb;
+package com.github.sudu.persistentidecaches.lmdb
 
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbInt2Int;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbInt2Long;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbInt2Path;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbInt2String;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbLong2Int;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbMap;
-import com.github.sudu.persistentidecaches.lmdb.maps.LmdbString2Int;
-import java.lang.reflect.InvocationTargetException;
-import java.nio.ByteBuffer;
-import java.nio.file.Path;
-import java.util.List;
-import org.apache.commons.lang3.tuple.Pair;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import org.lmdbjava.Env;
+import com.github.sudu.persistentidecaches.lmdb.maps.*
+import org.apache.commons.lang3.tuple.Pair
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import org.lmdbjava.Env
+import java.lang.reflect.InvocationTargetException
+import java.nio.ByteBuffer
+import java.nio.file.Path
 
-public class LmdbMapsTest {
-
-    public static final String GET = "get";
-    public static final String PUT = "put";
+class LmdbMapsTest {
     @TempDir
-    Path directory;
-    Env<ByteBuffer> env;
+    var directory: Path? = null
+    var env: Env<ByteBuffer>? = null
 
     @BeforeEach
-    void prepare() {
+    fun prepare() {
         this.env = Env.create()
-                .setMapSize(10_485_760)
-                .setMaxDbs(1)
-                .setMaxReaders(1)
-                .open(directory.toFile());
+            .setMapSize(10485760)
+            .setMaxDbs(1)
+            .setMaxReaders(1)
+            .open(directory!!.toFile())
     }
 
     @Test
-    void testInt2Int() throws InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        final var map = new LmdbInt2Int(env, "a");
-        final var list = List.of(
-                Pair.of(1, 2),
-                Pair.of(3, 4),
-                Pair.of(5, 6),
-                Pair.of(10000, 2)
-        );
-        testMap(map, list, List.of(100, 4, 0), -1, Integer.TYPE, Integer.TYPE);
+    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
+    fun testInt2Int() {
+        val map = LmdbInt2Int(env!!, "a")
+        val list = java.util.List.of(
+            Pair.of(1, 2),
+            Pair.of(3, 4),
+            Pair.of(5, 6),
+            Pair.of(10000, 2)
+        )
+        testMap(map, list, listOf(100, 4, 0), -1, Integer.TYPE, Integer.TYPE)
     }
 
     @Test
-    void testInt2Long() throws InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        final var map = new LmdbInt2Long(env, "a");
-        final var list = List.of(
-                Pair.of(1, 2L),
-                Pair.of(3, 4L),
-                Pair.of(5, 6L),
-                Pair.of(10000, 2L)
-        );
-        testMap(map, list, List.of(100, 4, 0), -1L, Integer.TYPE, Long.TYPE);
+    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
+    fun testInt2Long() {
+        val map = LmdbInt2Long(env!!, "a")
+        val list = java.util.List.of(
+            Pair.of(1, 2L),
+            Pair.of(3, 4L),
+            Pair.of(5, 6L),
+            Pair.of(10000, 2L)
+        )
+        testMap(map, list, listOf(100, 4, 0), -1L, Integer.TYPE, java.lang.Long.TYPE)
     }
 
     @Test
-    void testLong2Int() throws InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        final var map = new LmdbLong2Int(env, "a");
-        final List<Pair<Long, Integer>> list = List.of(
-                Pair.of(1L, 2),
-                Pair.of(3L, 4),
-                Pair.of(5L, 6),
-                Pair.of(10000L, 2),
-                Pair.of(100_000_000_000_000L, 2)
-        );
-        testMap(map, list, List.of(100L, 4L, 0L, 100_000_000_000_001L), -1, Long.TYPE, Integer.TYPE);
+    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
+    fun testLong2Int() {
+        val map = LmdbLong2Int(env!!, "a")
+        val list = java.util.List.of(
+            Pair.of(1L, 2),
+            Pair.of(3L, 4),
+            Pair.of(5L, 6),
+            Pair.of(10000L, 2),
+            Pair.of(100000000000000L, 2)
+        )
+        testMap(map, list, listOf(100L, 4L, 0L, 100000000000001L), -1, java.lang.Long.TYPE, Integer.TYPE)
     }
 
     @Test
-    void testInt2File() throws InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        final var map = new LmdbInt2Path(env, "a");
-        final var list = List.of(
-                Pair.of(1, Path.of("1")),
-                Pair.of(3, Path.of("3")),
-                Pair.of(5, Path.of("5")),
-                Pair.of(10000, Path.of("1"))
-        );
-        testMap(map, list, List.of(100, 4, 0), null, Integer.TYPE, Path.class);
+    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
+    fun testInt2File() {
+        val map = LmdbInt2Path(env!!, "a")
+        val list = java.util.List.of(
+            Pair.of(1, Path.of("1")),
+            Pair.of(3, Path.of("3")),
+            Pair.of(5, Path.of("5")),
+            Pair.of(10000, Path.of("1"))
+        )
+        testMap(map, list, listOf(100, 4, 0), null, Integer.TYPE, Path::class.java)
     }
 
     @Test
-    void testString2Int() throws InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        final var map = new LmdbString2Int(env, "a");
-        final var list = List.of(
-                Pair.of("1", 1),
-                Pair.of("3", 3),
-                Pair.of("5", 5),
-                Pair.of("1000", 1)
-        );
-        testMap(map, list, List.of("100", "4", "0"), -1, String.class, Integer.TYPE);
+    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
+    fun testString2Int() {
+        val map = LmdbString2Int(env!!, "a")
+        val list = java.util.List.of(
+            Pair.of("1", 1),
+            Pair.of("3", 3),
+            Pair.of("5", 5),
+            Pair.of("1000", 1)
+        )
+        testMap(map, list, listOf("100", "4", "0"), -1, String::class.java, Integer.TYPE)
     }
 
     @Test
-    void testInt2String() throws InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        final var map = new LmdbInt2String(env, "a");
-        final var list = List.of(
-                Pair.of(1, "1"),
-                Pair.of(3, "3"),
-                Pair.of(5, "5"),
-                Pair.of(10000, "1")
-        );
-        testMap(map, list, List.of(100, 4, 0), null, Integer.TYPE, String.class);
+    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
+    fun testInt2String() {
+        val map = LmdbInt2String(env!!, "a")
+        val list = java.util.List.of(
+            Pair.of(1, "1"),
+            Pair.of(3, "3"),
+            Pair.of(5, "5"),
+            Pair.of(10000, "1")
+        )
+        testMap(map, list, listOf(100, 4, 0), null, Integer.TYPE, String::class.java)
     }
 
     @Test
-    void testSha12String() throws InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        final var map = new LmdbInt2String(env, "a");
-        final var list = List.of(
-                Pair.of(1, "1"),
-                Pair.of(3, "3"),
-                Pair.of(5, "5"),
-                Pair.of(10000, "1")
-        );
-        testMap(map, list, List.of(100, 4, 0), null, Integer.TYPE, String.class);
+    @Throws(InvocationTargetException::class, NoSuchMethodException::class, IllegalAccessException::class)
+    fun testSha12String() {
+        val map = LmdbInt2String(env!!, "a")
+        val list = java.util.List.of(
+            Pair.of(1, "1"),
+            Pair.of(3, "3"),
+            Pair.of(5, "5"),
+            Pair.of(10000, "1")
+        )
+        testMap(map, list, listOf(100, 4, 0), null, Integer.TYPE, String::class.java)
     }
 
 
-    <T, V> void testMap(final LmdbMap map, final List<Pair<T, V>> list, final List<T> missingKeys, final V defaultValue,
-            final Class<?> keyToken, final Class<?> valueToken)
-            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        final var putMethod = map.getClass().getMethod(PUT, keyToken, valueToken);
-        final var getMethod = map.getClass().getMethod(GET, keyToken);
-        for (final var pair : list) {
-            for (final var key : missingKeys) {
-                Assertions.assertNotEquals(pair.getLeft(), pair.getRight());
+    @Throws(NoSuchMethodException::class, InvocationTargetException::class, IllegalAccessException::class)
+    fun <T, V> testMap(
+        map: LmdbMap,
+        list: List<Pair<T, V>>,
+        missingKeys: List<T>,
+        defaultValue: V,
+        keyToken: Class<*>?,
+        valueToken: Class<*>?
+    ) {
+        val putMethod = map.javaClass.getMethod(PUT, keyToken, valueToken)
+        val getMethod = map.javaClass.getMethod(GET, keyToken)
+        for (pair in list) {
+            for (key in missingKeys) {
+                Assertions.assertNotEquals(pair.left, pair.right)
             }
         }
-        for (final var pair : list) {
-            putMethod.invoke(map, pair.getLeft(), pair.getRight());
+        for (pair in list) {
+            putMethod.invoke(map, pair.left, pair.right)
         }
-        for (final var pair : list) {
-            Assertions.assertEquals(getMethod.invoke(map, pair.getLeft()), pair.getRight());
+        for (pair in list) {
+            Assertions.assertEquals(getMethod.invoke(map, pair.left), pair.right)
         }
-        for (final var key : missingKeys) {
-            Assertions.assertEquals(getMethod.invoke(map, key), defaultValue);
-
+        for (key in missingKeys) {
+            Assertions.assertEquals(getMethod.invoke(map, key), defaultValue)
         }
     }
 
+    companion object {
+        const val GET: String = "get"
+        const val PUT: String = "put"
+    }
 }

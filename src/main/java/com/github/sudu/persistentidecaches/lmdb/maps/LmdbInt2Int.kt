@@ -1,31 +1,29 @@
-package com.github.sudu.persistentidecaches.lmdb.maps;
+package com.github.sudu.persistentidecaches.lmdb.maps
 
-import java.nio.ByteBuffer;
-import org.lmdbjava.DbiFlags;
-import org.lmdbjava.Env;
+import org.lmdbjava.DbiFlags
+import org.lmdbjava.Env
+import java.nio.ByteBuffer
 
-public class LmdbInt2Int extends LmdbAbstractInt2Smth {
-    private final ByteBuffer valueBuffer;
+class LmdbInt2Int(env: Env<ByteBuffer>, dbName: String?) :
+    LmdbAbstractInt2Smth(env, env.openDbi(dbName, DbiFlags.MDB_CREATE, DbiFlags.MDB_INTEGERKEY)) {
+    private val valueBuffer: ByteBuffer = ByteBuffer.allocateDirect(Integer.BYTES)
 
-    public LmdbInt2Int(final Env<ByteBuffer> env, final String dbName) {
-        super(env, env.openDbi(dbName, DbiFlags.MDB_CREATE, DbiFlags.MDB_INTEGERKEY));
-        valueBuffer = ByteBuffer.allocateDirect(Integer.BYTES);
+    fun put(key: Int, value: Int) {
+        putImpl(
+            getKey(key),
+            getValue(value)
+        )
     }
 
-    public void put(final int key, final int value) {
-        putImpl(getKey(key),
-                getValue(value));
-    }
-
-    protected ByteBuffer getValue(final int value) {
-        return valueBuffer.putInt(value).flip();
+    protected fun getValue(value: Int): ByteBuffer {
+        return valueBuffer.putInt(value).flip()
     }
 
     /**
      * @return value for key or -1
      */
-    public int get(final int key) {
-        final ByteBuffer res = getImpl(getKey(key));
-        return res == null ? -1 : res.getInt();
+    fun get(key: Int): Int {
+        val res = getImpl(getKey(key))
+        return res?.getInt() ?: -1
     }
 }

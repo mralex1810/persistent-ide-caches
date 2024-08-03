@@ -1,13 +1,15 @@
-package com.github.sudu.persistentidecaches.symbols;
+package com.github.sudu.persistentidecaches.symbols
 
-public record Symbol(String name, int pathNum) implements Comparable<Symbol> {
+private const val DUMMY = "DUMMY"
 
-    public static final Symbol MIN = new Symbol(null, Integer.MIN_VALUE);
-    public static final Symbol MAX = new Symbol(null, Integer.MAX_VALUE);
+data class Symbol(val name: String, val pathNum: Int) : Comparable<Symbol> {
+    override fun compareTo(o: Symbol): Int {
+        val res = pathNum.compareTo(o.pathNum)
+        return if (res == 0) name.compareTo(o.name) else res
+    }
 
-    @Override
-    public int compareTo(final Symbol o) {
-        final int res = Integer.compare(pathNum, o.pathNum);
-        return res == 0 ? name.compareTo(o.name) : res;
+    companion object {
+        val MIN: Symbol = Symbol(DUMMY, Int.MIN_VALUE)
+        val MAX: Symbol = Symbol(DUMMY, Int.MAX_VALUE)
     }
 }

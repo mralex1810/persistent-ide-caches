@@ -1,61 +1,70 @@
-package com.github.sudu.persistentidecaches.utils;
+package com.github.sudu.persistentidecaches.utils
 
-import java.util.HashMap;
-import java.util.Map;
+import com.github.sudu.persistentidecaches.utils.Counter.Companion.emptyCounter
+import java.util.function.BiConsumer
 
-public class DoubleCounter<Key1, Key2> {
+class DoubleCounter<Key1, Key2> {
+    private val counter: MutableMap<Key1, Counter<Key2>>
 
-    private final Map<Key1, Counter<Key2>> counter;
-
-    public DoubleCounter(final Map<Key1, Counter<Key2>> counter) {
-        this.counter = counter;
+    constructor(counter: MutableMap<Key1, Counter<Key2>>) {
+        this.counter = counter
     }
 
-    public DoubleCounter() {
-        counter = new HashMap<>();
+    constructor() {
+        counter = HashMap()
     }
 
-    public void add(final Key1 key1, final Key2 key2, final int value) {
-        counter.computeIfAbsent(key1, ignore -> new Counter<>()).add(key2, value);
+    fun add(key1: Key1, key2: Key2, value: Int) {
+        counter.computeIfAbsent(key1) { ignore: Key1 -> Counter() }
+            .add(key2, value)
     }
 
-    public void add(final DoubleCounter<Key1, Key2> other) {
-        other.forEach(this::add);
+    fun add(other: DoubleCounter<Key1, Key2>) {
+        other.forEach { key1: Key1, key2: Key2, value: Int -> this.add(key1, key2, value) }
     }
 
-    public void add(final Key1 key1, final Counter<Key2> other) {
-        counter.computeIfAbsent(key1, ignore -> new Counter<>()).add(other);
+    fun add(key1: Key1, other: Counter<Key2>?) {
+        counter.computeIfAbsent(key1) { ignore: Key1 -> Counter() }.add(
+            other!!
+        )
     }
 
-    public void decrease(final Key1 key1, final Key2 key2, final int value) {
-        add(key1, key2, -value);
+    fun decrease(key1: Key1, key2: Key2, value: Int) {
+        add(key1, key2, -value)
     }
 
-    public void decrease(final DoubleCounter<Key1, Key2> other) {
-        other.forEach(this::decrease);
+    fun decrease(other: DoubleCounter<Key1, Key2>) {
+        other.forEach { key1: Key1, key2: Key2, value: Int -> this.decrease(key1, key2, value) }
     }
 
-    public void decrease(final Key1 key1, final Counter<Key2> other) {
-        counter.computeIfAbsent(key1, ignore -> new Counter<>()).decrease(other);
+    fun decrease(key1: Key1, other: Counter<Key2>?) {
+        counter.computeIfAbsent(key1) { ignore: Key1 -> Counter() }.decrease(
+            other!!
+        )
     }
 
-    public Map<Key1, Counter<Key2>> getAsMap() {
-        return counter;
+    val asMap: Map<Key1, Counter<Key2>>
+        get() = counter
+
+    fun forEach(function: TriConsumer<Key1, Key2, Int>) {
+        counter.forEach((BiConsumer { key1: Key1, key2IntegerMap: Counter<Key2> ->
+            key2IntegerMap.forEach { key2: Key2, value: Int? ->
+                function.accept(
+                    key1,
+                    key2,
+                    value
+                )
+            }
+        }))
     }
 
-    public void forEach(final TriConsumer<Key1, Key2, Integer> function) {
-        counter.forEach(((key1, key2IntegerMap) ->
-                key2IntegerMap.forEach((key2, value) -> function.accept(key1, key2, value)
-                )));
+    fun get(key1: Key1, key2: Key2): Int {
+        return counter.getOrDefault(key1, emptyCounter()).get(key2)
     }
 
-    public int get(final Key1 key1, final Key2 key2) {
-        return counter.getOrDefault(key1, Counter.emptyCounter()).get(key2);
-    }
-
-    public DoubleCounter<Key1, Key2> copy() {
-        final DoubleCounter<Key1, Key2> result = new DoubleCounter<>();
-        counter.forEach(result::add);
-        return result;
+    fun copy(): DoubleCounter<Key1, Key2> {
+        val result = DoubleCounter<Key1, Key2>()
+        counter.forEach { (key1: Key1, other: Counter<Key2>?) -> result.add(key1, other) }
+        return result
     }
 }

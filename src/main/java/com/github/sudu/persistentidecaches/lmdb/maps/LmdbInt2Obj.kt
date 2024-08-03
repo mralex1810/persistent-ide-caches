@@ -1,14 +1,14 @@
-package com.github.sudu.persistentidecaches.lmdb.maps;
+package com.github.sudu.persistentidecaches.lmdb.maps
 
-import java.util.function.BiConsumer;
+import java.util.function.BiConsumer
 
-public interface LmdbInt2Obj<V> {
+interface LmdbInt2Obj<V> {
+    fun put(key: Int, value: V)
 
-    void put(final int key, final V value);
     /**
      * @return value for key or null
      */
-    V get(final int key);
+    operator fun get(key: Int): V?
 
-    void forEach(final BiConsumer<Integer, V> consumer);
+    fun forEach(consumer: BiConsumer<Int, V>)
 }

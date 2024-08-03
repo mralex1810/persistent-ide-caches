@@ -1,46 +1,36 @@
-package com.github.sudu.persistentidecaches.utils;
+package com.github.sudu.persistentidecaches.utils
 
-import com.github.sudu.persistentidecaches.CountingCache;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
+import com.github.sudu.persistentidecaches.CountingCache
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.BiConsumer
 
-public class DummyCountingCache<V> implements CountingCache<V> {
-    public final AtomicInteger counter = new AtomicInteger();
-    public final Map<Integer, V> numToObj = new HashMap<>();
-    public final Map<V, Integer> objToNum = new HashMap<>();
+class DummyCountingCache<V> : CountingCache<V> {
+    val counter: AtomicInteger = AtomicInteger()
+    val numToObj: MutableMap<Int, V> = HashMap()
+    val objToNum: MutableMap<V, Int?> = HashMap()
 
-    @Override
-    public int getNumber(final V obj) {
-        return objToNum.get(obj);
+    override fun getNumber(obj: V): Int {
+        return objToNum[obj]!!
     }
 
-    @Override
-    public V getObject(final int objNum) {
-        return numToObj.get(objNum);
+    override fun getObject(objNum: Int): V? {
+        return numToObj[objNum]
     }
 
-    @Override
-    public void tryRegisterNewObj(final V obj) {
-        if (objToNum.get(obj) == null) {
-            numToObj.put(counter.get(), obj);
-            objToNum.put(obj, counter.getAndIncrement());
+    override fun tryRegisterNewObj(obj: V) {
+        if (objToNum[obj] == null) {
+            numToObj[counter.get()] = obj
+            objToNum[obj] = counter.getAndIncrement()
         }
     }
 
-    @Override
-    public void restoreObjectsFromDB() {
-
+    override fun restoreObjectsFromDB() {
     }
 
-    @Override
-    public void init() {
-
+    override fun init() {
     }
 
-    @Override
-    public void forEach(final BiConsumer<V, Number> consumer) {
-        objToNum.forEach(consumer);
+    override fun forEach(consumer: BiConsumer<V, Number?>?) {
+        objToNum.forEach(consumer!!)
     }
 }

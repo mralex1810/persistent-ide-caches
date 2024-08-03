@@ -1,53 +1,42 @@
-package com.github.sudu.persistentidecaches.lmdb.maps;
+package com.github.sudu.persistentidecaches.lmdb.maps
 
-import com.github.sudu.persistentidecaches.symbols.Symbol;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.function.BiConsumer;
-import org.lmdbjava.CursorIterable;
-import org.lmdbjava.DbiFlags;
-import org.lmdbjava.Env;
-import org.lmdbjava.KeyRange;
-import org.lmdbjava.Txn;
+import com.github.sudu.persistentidecaches.symbols.Symbol
+import org.lmdbjava.DbiFlags
+import org.lmdbjava.Env
+import org.lmdbjava.KeyRange
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
+import java.util.function.BiConsumer
 
-public class LmdbInt2Symbol extends LmdbAbstractInt2Smth implements LmdbInt2Obj<Symbol> {
-
-    public LmdbInt2Symbol(final Env<ByteBuffer> env, final String dbName) {
-        super(env, env.openDbi(dbName, DbiFlags.MDB_CREATE, DbiFlags.MDB_INTEGERKEY));
+class LmdbInt2Symbol(env: Env<ByteBuffer>, dbName: String) :
+    LmdbAbstractInt2Smth(env, env.openDbi(dbName, DbiFlags.MDB_CREATE, DbiFlags.MDB_INTEGERKEY)), LmdbInt2Obj<Symbol> {
+    override fun put(key: Int, value: Symbol) {
+        val nameBytes = value.name.toByteArray()
+        putImpl(
+            getKey(key),
+            ByteBuffer.allocateDirect(nameBytes.size + Integer.BYTES)
+                .putInt(value.pathNum)
+                .put(nameBytes)
+                .flip()
+        )
     }
 
-    @Override
-    public void put(final int key, final Symbol value) {
-        final var nameBytes = value.name().getBytes();
-        putImpl(getKey(key),
-                ByteBuffer.allocateDirect(nameBytes.length + Integer.BYTES)
-                        .putInt(value.pathNum())
-                        .put(nameBytes)
-                        .flip());
+    override fun get(key: Int): Symbol? {
+        val res = getImpl(getKey(key)) ?: return null
+        val pathNum = res.getInt()
+        return Symbol(StandardCharsets.UTF_8.decode(res.slice()).toString(), pathNum)
     }
 
-    @Override
-    public Symbol get(final int key) {
-        final ByteBuffer res = getImpl(getKey(key));
-        if (res == null) {
-            return null;
-        }
-        final var pathNum = res.getInt();
-        return new Symbol(String.valueOf(StandardCharsets.UTF_8.decode(res.slice())), pathNum);
+    private fun decodeSymbol(byteBuffer: ByteBuffer): Symbol {
+        val pathNum = byteBuffer.getInt()
+        return Symbol(StandardCharsets.UTF_8.decode(byteBuffer.slice()).toString(), pathNum)
     }
 
-    private Symbol decodeSymbol(final ByteBuffer byteBuffer) {
-        final var pathNum = byteBuffer.getInt();
-        return new Symbol(String.valueOf(StandardCharsets.UTF_8.decode(byteBuffer.slice())), pathNum);
-
-    }
-
-    @Override
-    public void forEach(final BiConsumer<Integer, Symbol> consumer) {
-        try (final Txn<ByteBuffer> txn = env.txnRead()) {
-            try (final CursorIterable<ByteBuffer> ci = db.iterate(txn, KeyRange.all())) {
-                for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
-                    consumer.accept(kv.key().getInt(), decodeSymbol(kv.val()));
+    override fun forEach(consumer: BiConsumer<Int, Symbol>) {
+        env.txnRead().use { txn ->
+            db.iterate(txn, KeyRange.all()).use { ci ->
+                for (kv in ci) {
+                    consumer.accept(kv.key().getInt(), decodeSymbol(kv.`val`()))
                 }
             }
         }

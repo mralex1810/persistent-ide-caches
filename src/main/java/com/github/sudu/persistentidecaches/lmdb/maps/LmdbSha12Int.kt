@@ -1,43 +1,37 @@
-package com.github.sudu.persistentidecaches.lmdb.maps;
+package com.github.sudu.persistentidecaches.lmdb.maps
 
-import static java.nio.ByteBuffer.allocateDirect;
+import org.eclipse.jgit.util.Hex
+import org.lmdbjava.Env
+import org.lmdbjava.KeyRange
+import java.nio.ByteBuffer
+import java.util.*
+import java.util.function.BiConsumer
 
-import java.nio.ByteBuffer;
-import java.util.HexFormat;
-import java.util.function.BiConsumer;
-import org.eclipse.jgit.util.Hex;
-import org.lmdbjava.CursorIterable;
-import org.lmdbjava.Env;
-import org.lmdbjava.KeyRange;
-
-public class LmdbSha12Int extends LmdbAbstractMap {
-
-    public LmdbSha12Int(final Env<ByteBuffer> env, final String dbName) {
-        super(env, dbName);
-    }
-
-    public void put(final String hash, final int value) {
-        final byte[] bytes = HexFormat.of().parseHex(hash);
-        putImpl(allocateDirect(bytes.length).put(bytes).flip(),
-                allocateInt(value));
+class LmdbSha12Int(env: Env<ByteBuffer>, dbName: String) : LmdbAbstractMap(env, dbName) {
+    fun put(hash: String?, value: Int) {
+        val bytes = HexFormat.of().parseHex(hash)
+        putImpl(
+            ByteBuffer.allocateDirect(bytes.size).put(bytes).flip(),
+            allocateInt(value)
+        )
     }
 
     /**
      * @return value for key or -1
      */
-    public int get(final String hash) {
-        final byte[] bytes = HexFormat.of().parseHex(hash);
-        final ByteBuffer res = getImpl(allocateDirect(bytes.length).put(bytes).flip());
-        return res == null ? -1 : res.getInt();
+    fun get(hash: String?): Int {
+        val bytes = HexFormat.of().parseHex(hash)
+        val res = getImpl(ByteBuffer.allocateDirect(bytes.size).put(bytes).flip())
+        return res?.getInt() ?: -1
     }
 
-    public void forEach(final BiConsumer<String, Integer> consumer) {
-        try (final var txn = env.txnRead()) {
-            try (final CursorIterable<ByteBuffer> ci = db.iterate(txn, KeyRange.all())) {
-                for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
-                    final var bytes = new byte[kv.key().capacity()];
-                    kv.key().get(bytes);
-                    consumer.accept(Hex.toHexString(bytes), kv.val().getInt());
+    fun forEach(consumer: BiConsumer<String?, Int?>) {
+        env.txnRead().use { txn ->
+            db.iterate(txn, KeyRange.all()).use { ci ->
+                for (kv in ci) {
+                    val bytes = ByteArray(kv.key().capacity())
+                    kv.key()[bytes]
+                    consumer.accept(Hex.toHexString(bytes), kv.`val`().getInt())
                 }
             }
         }

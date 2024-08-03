@@ -1,8 +1,5 @@
-package com.github.sudu.persistentidecaches.utils;
+package com.github.sudu.persistentidecaches.utils
 
-@FunctionalInterface
-public interface ByteArrIntIntConsumer {
-
-    void accept(byte[] t, int u, int v);
-
+fun interface ByteArrIntIntConsumer {
+    fun accept(t: ByteArray?, u: Int, v: Int)
 }

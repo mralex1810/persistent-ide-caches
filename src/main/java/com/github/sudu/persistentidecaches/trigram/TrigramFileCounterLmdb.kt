@@ -1,38 +1,44 @@
-package com.github.sudu.persistentidecaches.trigram;
+package com.github.sudu.persistentidecaches.trigram
 
-import com.github.sudu.persistentidecaches.lmdb.CountingCacheImpl;
-import com.github.sudu.persistentidecaches.lmdb.TrigramObjCounterLmdb;
-import com.github.sudu.persistentidecaches.records.ByteArrIntInt;
-import com.github.sudu.persistentidecaches.records.LongInt;
-import java.nio.ByteBuffer;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import org.lmdbjava.Env;
-import org.lmdbjava.Txn;
+import com.github.sudu.persistentidecaches.lmdb.CountingCacheImpl
+import com.github.sudu.persistentidecaches.lmdb.TrigramObjCounterLmdb
+import com.github.sudu.persistentidecaches.records.ByteArrIntInt
+import com.github.sudu.persistentidecaches.records.LongInt
+import com.github.sudu.persistentidecaches.records.Trigram
+import org.lmdbjava.Env
+import org.lmdbjava.Txn
+import java.nio.ByteBuffer
+import java.nio.file.Path
 
-public class TrigramFileCounterLmdb extends TrigramObjCounterLmdb<Path> {
-
-    public TrigramFileCounterLmdb(final Env<ByteBuffer> env, final CountingCacheImpl<Path> pathCache) {
-        super(pathCache, env, "trigram_file_counter");
-    }
-    public void add(final TrigramFileCounter counter) {
-        db.addAll(counterToList(counter));
+class TrigramFileCounterLmdb(env: Env<ByteBuffer>, pathCache: CountingCacheImpl<Path>) :
+    TrigramObjCounterLmdb<Path>(
+        pathCache, env, "trigram_file_counter"
+    ) {
+    fun add(counter: TrigramFileCounter) {
+        db.addAll(counterToList(counter))
     }
 
-    public void add(final Txn<ByteBuffer> txn, final List<ByteArrIntInt> counter) {
+    fun add(txn: Txn<ByteBuffer>, counter: List<ByteArrIntInt>) {
         db.addAll(txn, counter.stream()
-                .map(it -> new LongInt(getKey(it.trigram(), it.num()), it.delta()))
-                .toList());
+            .map { it: ByteArrIntInt -> LongInt(getKey(it.trigram, it.num), it.delta) }
+            .toList())
     }
 
-    public void decrease(final TrigramFileCounter counter) {
-        db.decreaseAll(counterToList(counter));
+    fun decrease(counter: TrigramFileCounter) {
+        db.decreaseAll(counterToList(counter))
     }
 
-    private List<LongInt> counterToList(final TrigramFileCounter counter) {
-        final List<LongInt> list = new ArrayList<>();
-        counter.forEach((trigram, file, integer) -> list.add(new LongInt(getKey(trigram, file), integer)));
-        return list;
+    private fun counterToList(counter: TrigramFileCounter): List<LongInt> {
+        val list: MutableList<LongInt> = ArrayList()
+        counter.forEach { trigram: Trigram, file: Path, integer: Int ->
+            list.add(
+                LongInt(
+                    getKey(
+                        trigram, file
+                    ), integer
+                )
+            )
+        }
+        return list
     }
 }

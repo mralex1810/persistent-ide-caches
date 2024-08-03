@@ -1,10 +1,6 @@
-package com.github.sudu.persistentidecaches.records;
+package com.github.sudu.persistentidecaches.records
 
-import java.nio.file.Path;
+import java.nio.file.Path
 
-public record TrigramFile(Trigram trigram, Path file) {
-    @Override
-    public int hashCode() {
-        return trigram.toInt() * 31 + file.hashCode();
-    }
+data class TrigramFile(val trigram: Trigram, val file: Path) {
 }
