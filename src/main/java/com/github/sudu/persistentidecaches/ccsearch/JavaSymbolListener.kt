@@ -1,89 +1,79 @@
-package com.github.SuduIDE.persistentidecaches.ccsearch;
+package com.github.sudu.persistentidecaches.ccsearch
 
-import com.github.SuduIDE.persistentidecaches.javaparaser.JavaLexer;
-import com.github.SuduIDE.persistentidecaches.javaparaser.JavaParser;
-import com.github.SuduIDE.persistentidecaches.javaparaser.JavaParserBaseListener;
-import com.github.SuduIDE.persistentidecaches.symbols.Symbols;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.RuleContext;
-import org.antlr.v4.runtime.tree.ParseTree;
-import org.antlr.v4.runtime.tree.ParseTreeWalker;
+import com.github.sudu.persistentidecaches.javaparaser.JavaLexer
+import com.github.sudu.persistentidecaches.javaparaser.JavaParser
+import com.github.sudu.persistentidecaches.javaparaser.JavaParser.*
+import com.github.sudu.persistentidecaches.javaparaser.JavaParserBaseListener
+import com.github.sudu.persistentidecaches.symbols.Symbols
+import org.antlr.v4.runtime.CharStreams
+import org.antlr.v4.runtime.CommonTokenStream
+import org.antlr.v4.runtime.tree.ParseTree
+import org.antlr.v4.runtime.tree.ParseTreeWalker
 
-import java.util.ArrayList;
+class JavaSymbolListener : JavaParserBaseListener() {
+    var symbols: Symbols = Symbols(ArrayList(), ArrayList(), ArrayList())
 
-public class JavaSymbolListener extends JavaParserBaseListener {
-
-    Symbols symbols = new Symbols(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
-
-    public static Symbols getSymbolsFromString(final String javaFile) {
-        final JavaLexer lexer = new JavaLexer(CharStreams.fromString(javaFile));
-        final CommonTokenStream tokens = new CommonTokenStream(lexer);
-        final JavaParser parser = new JavaParser(tokens);
-        final ParseTree tree = parser.compilationUnit();
-        final ParseTreeWalker walker = new ParseTreeWalker();
-        final JavaSymbolListener listener = new JavaSymbolListener();
-        walker.walk(listener, tree);
-        return listener.symbols;
+    override fun enterClassDeclaration(ctx: ClassDeclarationContext) {
+        symbols.classOrInterfaceSymbols.add(ctx.identifier().text)
     }
 
-    @Override
-    public void enterClassDeclaration(final JavaParser.ClassDeclarationContext ctx) {
-        symbols.classOrInterfaceSymbols().add(ctx.identifier().getText());
+    override fun enterEnumDeclaration(ctx: EnumDeclarationContext) {
+        symbols.classOrInterfaceSymbols.add(ctx.identifier().text)
     }
 
-    @Override
-    public void enterEnumDeclaration(final JavaParser.EnumDeclarationContext ctx) {
-        symbols.classOrInterfaceSymbols().add(ctx.identifier().getText());
+    override fun enterInterfaceDeclaration(ctx: InterfaceDeclarationContext) {
+        symbols.classOrInterfaceSymbols.add(ctx.identifier().text)
     }
 
-    @Override
-    public void enterInterfaceDeclaration(final JavaParser.InterfaceDeclarationContext ctx) {
-        symbols.classOrInterfaceSymbols().add(ctx.identifier().getText());
-    }
-
-    @Override
-    public void enterFieldDeclaration(final JavaParser.FieldDeclarationContext ctx) {
+    override fun enterFieldDeclaration(ctx: FieldDeclarationContext) {
         ctx.variableDeclarators().variableDeclarator().stream()
-                .map(JavaParser.VariableDeclaratorContext::variableDeclaratorId)
-                .map(JavaParser.VariableDeclaratorIdContext::identifier)
-                .map(RuleContext::getText)
-                .forEach(symbols.fieldSymbols()::add);
+            .map { it.variableDeclaratorId() }
+            .map { it.identifier() }
+            .map { it.text }
+            .forEach { e: String? -> symbols.fieldSymbols.add(e) }
     }
 
-    @Override
-    public void enterConstDeclaration(final JavaParser.ConstDeclarationContext ctx) {
-        symbols.fieldSymbols().addAll(
-                ctx.constantDeclarator().stream()
-                        .map(JavaParser.ConstantDeclaratorContext::identifier)
-                        .map(RuleContext::getText)
-                        .toList()
-        );
+    override fun enterConstDeclaration(ctx: ConstDeclarationContext) {
+        symbols.fieldSymbols.addAll(
+            ctx.constantDeclarator().stream()
+                .map { it.identifier() }
+                .map { it.text }
+                .toList()
+        )
     }
 
-    @Override
-    public void enterInterfaceMethodDeclaration(final JavaParser.InterfaceMethodDeclarationContext ctx) {
-        symbols.methodSymbols().add(ctx.interfaceCommonBodyDeclaration().identifier().getText());
+    override fun enterInterfaceMethodDeclaration(ctx: InterfaceMethodDeclarationContext) {
+        symbols.methodSymbols.add(ctx.interfaceCommonBodyDeclaration().identifier().text)
     }
 
-    @Override
-    public void enterRecordDeclaration(final JavaParser.RecordDeclarationContext ctx) {
-        symbols.classOrInterfaceSymbols().add(ctx.identifier().getText());
+    override fun enterRecordDeclaration(ctx: RecordDeclarationContext) {
+        symbols.classOrInterfaceSymbols.add(ctx.identifier().text)
     }
 
-    @Override
-    public void enterMethodDeclaration(final JavaParser.MethodDeclarationContext ctx) {
-        symbols.methodSymbols().add(ctx.identifier().getText());
+    override fun enterMethodDeclaration(ctx: MethodDeclarationContext) {
+        symbols.methodSymbols.add(ctx.identifier().text)
     }
 
     // we need it?
-    @Override
-    public void enterLocalVariableDeclaration(final JavaParser.LocalVariableDeclarationContext ctx) {
-        super.enterLocalVariableDeclaration(ctx);
+    override fun enterLocalVariableDeclaration(ctx: LocalVariableDeclarationContext) {
+        super.enterLocalVariableDeclaration(ctx)
     }
 
-    @Override
-    public void enterLocalTypeDeclaration(final JavaParser.LocalTypeDeclarationContext ctx) {
-        super.enterLocalTypeDeclaration(ctx);
+    override fun enterLocalTypeDeclaration(ctx: LocalTypeDeclarationContext) {
+        super.enterLocalTypeDeclaration(ctx)
+    }
+
+    companion object {
+        @JvmStatic
+        fun getSymbolsFromString(javaFile: String?): Symbols {
+            val lexer = JavaLexer(CharStreams.fromString(javaFile))
+            val tokens = CommonTokenStream(lexer)
+            val parser = JavaParser(tokens)
+            val tree: ParseTree = parser.compilationUnit()
+            val walker = ParseTreeWalker()
+            val listener = JavaSymbolListener()
+            walker.walk(listener, tree)
+            return listener.symbols
+        }
     }
 }

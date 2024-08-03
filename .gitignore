@@ -1,1 +1,5 @@
 /src/main/java/com/github/SuduIDE/persistentidecaches/javaparaser/
+.idea
+.gradle
+build
+gradle

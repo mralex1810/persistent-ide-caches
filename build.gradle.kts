@@ -1,6 +1,7 @@
 plugins {
     id("java")
     id("antlr")
+    kotlin("jvm") version "2.0.0"
 }
 
 group = "com.github"
@@ -43,9 +44,11 @@ dependencies {
     // https://mvnrepository.com/artifact/org.antlr/antlr4-runtime
     implementation("org.antlr:antlr4-runtime:$antlrPluginVersion")
     antlr("org.antlr:antlr4:$antlrPluginVersion")
+
+    implementation(kotlin("stdlib-jdk8"))
 }
 val generatedModule = "${projectDir}/src/main/java"
-val generationOutput = "$generatedModule/com/github/SuduIDE/persistentidecaches/javaparaser"
+val generationOutput = "$generatedModule/com/github/sudu/persistentidecaches/javaparaser"
 
 sourceSets {
     main {
@@ -57,13 +60,13 @@ sourceSets {
 
 tasks.named<AntlrTask>("generateGrammarSource") {
     maxHeapSize = "64m"
-    arguments.addAll(listOf("-visitor", "-long-messages", "-package", "com.github.SuduIDE.persistentidecaches.javaparaser"))
+    arguments.addAll(listOf("-visitor", "-long-messages", "-package", "com.github.sudu.persistentidecaches.javaparaser"))
     outputDirectory = file(generationOutput)
 }
 
 tasks.named<Jar>("jar") {
     manifest {
-        attributes["Main-Class"] = "com.github.SuduIDE.persistentidecaches.VsCodeClient"
+        attributes["Main-Class"] = "com.github.sudu.persistentidecaches.VsCodeClient"
     }
 
     // Ensure the runtime classpath also includes ANTLR generated sources
